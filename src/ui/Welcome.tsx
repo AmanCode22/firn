@@ -109,7 +109,12 @@ export function Welcome({
             A calm place for the web. Let's set up a few things; it takes a
             minute, and you can change any of it later.
           </p>
-          <button className="welcome-next" onClick={next} autoFocus>
+          <button
+            className="welcome-next"
+            data-testid="welcome-next"
+            onClick={next}
+            autoFocus
+          >
             Let's begin
           </button>
         </>
@@ -226,6 +231,7 @@ export function Welcome({
                   key={site.url}
                   aria-pressed={on}
                   className={`welcome-site${on ? ' is-on' : ''}`}
+                  data-testid="welcome-site"
                   style={{ '--accent': accent } as React.CSSProperties}
                   onClick={() =>
                     setPicked(
@@ -366,7 +372,12 @@ export function Welcome({
                 <button className="welcome-quiet" onClick={back}>
                   Back
                 </button>
-                <button className="welcome-next" onClick={next} autoFocus>
+                <button
+                  className="welcome-next"
+                  data-testid="welcome-next"
+                  onClick={next}
+                  autoFocus
+                >
                   {step === STEPS.length - 1 ? 'Start browsing' : 'Continue'}
                 </button>
               </footer>

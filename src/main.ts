@@ -49,6 +49,7 @@ import { cleanSettings, loadSettings, saveSettings } from './settings';
 import { isSpaceIcon, SPACE_ICON_NAMES, toSpaceIcon } from './spaceIcons';
 import { BASECAMP_MAX, TabManager } from './tabs';
 import { startUpdates } from './updates';
+import { DEMO, demoBounds, installDemoHooks, useDemoProfile } from './demo';
 import { macMenuTemplate } from './menu';
 import { matchShortcut, menuAccelerator } from './shortcuts';
 import { ARCHIVE_CHOICES, isOld, noteDayUsed } from './archive';
@@ -420,7 +421,8 @@ function usableBounds(saved: SavedWindow['bounds']) {
 const createWindow = () => {
   // Bring back the last session, if there is one.
   const saved = loadSession();
-  const bounds = usableBounds(saved?.window.bounds);
+  // Demo mode (src/demo.ts): always the same size and place.
+  const bounds = DEMO ? demoBounds() : usableBounds(saved?.window.bounds);
 
   // The window itself hosts Firn's own UI (the sidebar).
   const win = new BrowserWindow({
@@ -430,6 +432,8 @@ const createWindow = () => {
     y: bounds?.y,
     minWidth: 640,
     minHeight: 400,
+    // (Demo mode: the size is the inside of the window.)
+    useContentSize: DEMO,
     title: 'Firn',
     // The window and taskbar icon while running from source (a packaged
     // Firn gets its icon from forge.config.mts).
@@ -468,7 +472,7 @@ const createWindow = () => {
     ),
     sidebarCollapsed: saved?.window.sidebarCollapsed ?? false,
   };
-  if (saved?.window.maximized) win.maximize();
+  if (saved?.window.maximized && !DEMO) win.maximize();
 
   // --- Layers above the web page ------------------------------------------
   // Web pages are drawn on top of the sidebar's layer, so anything that has
@@ -1506,8 +1510,9 @@ const createWindow = () => {
   };
   const applySettings = () => {
     setSearchEngine(settings.searchEngine);
-    nativeTheme.themeSource = settings.theme;
-    if (settings.safeBrowsing) safeBrowsing.start();
+    // Demo mode: always light, and no calls to Safe Browsing.
+    nativeTheme.themeSource = DEMO ? 'light' : settings.theme;
+    if (settings.safeBrowsing && !DEMO) safeBrowsing.start();
     else safeBrowsing.stop();
     if (settings.adBlocking) adBlocker.start();
   };
@@ -1573,6 +1578,8 @@ const createWindow = () => {
         sitePermissions.get(request.origin, kind, request.detail),
       );
       if (decisions.includes('block')) return request.respond(false);
+      // Demo mode: nothing asks (a question would end up in a clip).
+      if (DEMO) return request.respond(false);
       if (decisions.every((d) => d === 'allow')) return request.respond(true);
       // Only tabs ask (not Lookout previews or popups).
       const tabId = request.page ? tabs.idOfPage(request.page) : null;
@@ -3575,6 +3582,9 @@ const createWindow = () => {
 
 // Only one Firn runs at a time. Opening it again brings the existing window
 // forward instead, so two copies can never overwrite each other's session.
+// (Demo mode first moves Firn's data to its throwaway folder.)
+useDemoProfile();
+installDemoHooks();
 const isFirstInstance = app.requestSingleInstanceLock();
 if (!isFirstInstance) app.quit();
 
@@ -3602,7 +3612,7 @@ app.on('open-file', (event, file) => {
 app.whenReady().then(() => {
   if (!isFirstInstance) return;
   createWindow();
-  startUpdates(debug);
+  if (!DEMO) startUpdates(debug);
 
   // On macOS, re-create a window when the dock icon is clicked and none are open.
   app.on('activate', () => {

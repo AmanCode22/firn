@@ -336,6 +336,7 @@ function BasecampTile({
         } as CSSProperties
       }
       data-tile={tab.id}
+      data-testid="basecamp-tile"
       title={tabTitle(tab)}
       {...handlers}
       onAuxClick={(e) => {

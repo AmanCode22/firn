@@ -109,6 +109,8 @@ export function SpaceSwitcher({ spaces, activeSpaceId }: SpacesState) {
         <button
           key={space.id}
           className={`space-dot ${space.id === activeSpaceId ? 'is-active' : ''}`}
+          data-testid="space"
+          data-space={space.name}
           title={i < 9 ? `${space.name}  (Ctrl+Shift+${i + 1})` : space.name}
           onClick={() => window.firn.switchSpace(space.id)}
           onContextMenu={(e) => {

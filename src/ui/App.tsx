@@ -208,6 +208,7 @@ function SplitFrame({
       />
       <div
         className={`split-gap ${dragging ? 'is-dragging' : ''}`}
+        data-testid="split-divider"
         style={{ left: leftWidth }}
         title="Drag to resize · Double-click to even out"
         onPointerDown={(e) => {

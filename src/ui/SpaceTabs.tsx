@@ -347,6 +347,7 @@ export function SpaceTabs({
 
       <button
         className="new-tab"
+        data-testid="new-tab"
         data-item="new-tab"
         style={nudge('new-tab')}
         onClick={() => window.firn.newTab()}
@@ -417,6 +418,7 @@ function TabRow({
         .join(' ')}
       data-item={listed ? tab.id : undefined}
       data-kind={kind}
+      data-testid="tab"
       style={style}
       title={tabTitle(tab)}
       {...handlers}
@@ -488,6 +490,7 @@ function SplitRow({
         <span
           key={tab.id}
           className={`split-half ${tab.id === activeTabId ? 'is-current' : ''}`}
+          data-testid="tab"
           title={tabTitle(tab)}
           onPointerDown={(e) => onPointerDown(e, tab.id)}
           // Middle-click closes that side; the other carries on alone.

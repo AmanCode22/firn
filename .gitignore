@@ -150,3 +150,8 @@ safe-browsing-key.txt
 
 # Screenshots and logs from the end-to-end checks
 tests/e2e/out/
+
+# The demo recorder's throwaway profile, cache, and recordings (demo/README.md)
+demo/.profile/
+demo/.cache/
+demo/out/

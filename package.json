@@ -1,7 +1,7 @@
 {
   "name": "firn",
   "productName": "Firn",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "private": true,
   "description": "A calm, minimalist desktop browser.",
   "keywords": [],
@@ -18,7 +18,9 @@
     "release": "electron-forge release",
     "lint": "oxlint && oxfmt --check",
     "lint:fix": "oxlint --fix && oxfmt --write",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "demo": "node demo/run.mjs",
+    "demo:try-pages": "node demo/try-pages.mjs"
   },
   "devDependencies": {
     "@electron-forge/cli": "^8.0.1",
