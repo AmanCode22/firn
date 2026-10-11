@@ -1,5 +1,21 @@
 # What's new in Firn
 
+## Firn 0.7.0
+
+**Tabs you're done with now tidy themselves away.**
+
+Everyday tabs you haven't looked at for a week of using Firn quietly move into the archive box at the bottom of the sidebar, so your tabs stay calm without you closing them. Nothing is lost: click the box to bring any of them back.
+
+### New
+
+- **Archived tabs.** Tabs you haven't used for 7 days of using Firn move to the archive box (days you don't open Firn don't count, so a vacation won't empty your sidebar). Pinned tabs, Basecamp, the page you're on, split views, and anything playing sound always stay. Choose 1 day, 7 days, 30 days, or Never in Settings, or by right-clicking the box.
+- **The archive box,** at the bottom right of the sidebar. It gives a little nod when it tidies something away. Click it to see your archived tabs by space, and click one to bring it back. Archived tabs are also in your history.
+
+### Better
+
+- **On a Mac, hover labels are the Mac's own,** the same ones your other Mac apps show.
+- **On Windows, no more desktop shortcut.** New installs put Firn in the Start menu only, and updates no longer bring back a desktop shortcut you've deleted.
+
 ## Firn 0.6.1
 
 **Firn on a Mac now keeps itself up to date.**

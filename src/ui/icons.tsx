@@ -327,3 +327,23 @@ export const CopyIcon = () => (
     <path d="M10.5 3.6V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h.1" />
   </svg>
 );
+
+// The archive box: a box with a lid (the lid and the slot move on their own
+// in the box's little pulse, see .archive-button in styles.css).
+export const ArchiveIcon = () => (
+  <svg {...base}>
+    <path
+      className="archive-body"
+      d="M3.5 6.75v5c0 .97.78 1.75 1.75 1.75h5.5c.97 0 1.75-.78 1.75-1.75v-5"
+    />
+    <path className="archive-slot" d="M6.6 9.5h2.8" />
+    <rect
+      className="archive-lid"
+      x="2.25"
+      y="3"
+      width="11.5"
+      height="3.25"
+      rx="1.1"
+    />
+  </svg>
+);

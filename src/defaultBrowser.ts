@@ -96,21 +96,6 @@ export function unregisterWindowsBrowser() {
   remove(`HKCU\\${CLASSES}\\${PROG_ID}`);
 }
 
-// The installer's events (install, update, uninstall), handled before
-// anything else; electron-squirrel-startup (in main.ts) does the shortcuts
-// and quits.
-export function handleWindowsInstallerEvent() {
-  if (process.platform !== 'win32') return;
-  const event = process.argv[1];
-  try {
-    if (event === '--squirrel-install' || event === '--squirrel-updated')
-      registerWindowsBrowser();
-    else if (event === '--squirrel-uninstall') unregisterWindowsBrowser();
-  } catch {
-    // Not worth failing an install over; "Make Firn default…" tries again.
-  }
-}
-
 // --- Is Firn the default? ----------------------------------------------------
 
 // Whether this copy can be the default: an installed Windows copy, or a Mac

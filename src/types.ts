@@ -76,6 +76,20 @@ export interface SavedSession {
   recentlyClosed: string[];
   // Zoom remembered per site (host → zoom factor; 1 = 100% isn't stored).
   siteZoom?: Record<string, number>;
+  // Tabs tidied away into the Archive (newest first), and the days Firn
+  // was used (see src/archive.ts).
+  archive?: ArchivedTab[];
+  daysUsed?: string[];
+}
+
+// A tab tidied away into the Archive: enough to bring it back where it was.
+export interface ArchivedTab {
+  id: string;
+  url: string;
+  title: string;
+  favicon: string;
+  spaceId: string;
+  archivedAt: number;
 }
 
 // Firn's settings (src/settings.ts). `downloadsFolder` '' means the
@@ -98,6 +112,9 @@ export interface Settings {
   // The version of Firn that last ran here ('' before Firn kept track), so
   // the first start after an update can show what's new.
   lastVersion: string;
+  // Archive everyday tabs not looked at for this many days of use (0:
+  // never). See src/archive.ts.
+  archiveAfter: 0 | 1 | 7 | 30;
 }
 
 // What the settings panel shows: the settings, plus the downloads folder
@@ -168,7 +185,8 @@ export type CommandAction =
   | 'passwords'
   | 'welcome'
   | 'whats-new'
-  | 'shortcuts';
+  | 'shortcuts'
+  | 'archive';
 
 // --- What the UI is told ----------------------------------------------------
 
@@ -335,6 +353,7 @@ export type OverlayState =
   // updated), or of this version alone (since: '', or opened from a menu).
   | { mode: 'whats-new'; openId: number; since: string }
   | { mode: 'shortcuts'; openId: number }
+  | { mode: 'archive'; openId: number }
   // Find in page (Ctrl+F): `text` is the last search, to start from.
   | { mode: 'find'; openId: number; text: string }
   // Ctrl+Tab: tabs by most recent use, and which one is picked.
@@ -384,6 +403,15 @@ export interface FirnBridge {
   removeHistory(url: string): void;
   showClearHistoryMenu(): void;
   onHistoryChanged(listener: () => void): () => void;
+  // The Archive: tabs tidied away (newest first), bringing one back (it
+  // opens in its space), or forgetting one.
+  listArchive(): Promise<ArchivedTab[]>;
+  restoreArchived(id: string): void;
+  removeArchived(id: string): void;
+  // (With how many tabs were just tidied away, when that's the change.)
+  onArchiveChanged(listener: (tidied: number) => void): () => void;
+  // The archive box's right-click menu.
+  showArchiveMenu(): void;
   // Saved passwords: the answer to "save password?", and the passwords
   // panel (the list never includes passwords; showing one asks for it).
   answerSavePassword(answer: 'save' | 'dismiss'): void;

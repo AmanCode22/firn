@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { SEARCH_ENGINES, type SearchEngine } from './url';
+import { ARCHIVE_CHOICES, type ArchiveAfter } from './archive';
 import type { Settings } from './types';
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -16,6 +17,7 @@ export const DEFAULT_SETTINGS: Settings = {
   adsAllowedSites: [],
   onboarded: false,
   lastVersion: '',
+  archiveAfter: 7,
 };
 
 export function loadSettings(file: string): Settings {
@@ -70,6 +72,9 @@ export function cleanSettings(changes: unknown, current: Settings): Settings {
       typeof c.onboarded === 'boolean' ? c.onboarded : current.onboarded,
     lastVersion:
       typeof c.lastVersion === 'string' ? c.lastVersion : current.lastVersion,
+    archiveAfter: ARCHIVE_CHOICES.includes(c.archiveAfter as ArchiveAfter)
+      ? (c.archiveAfter as ArchiveAfter)
+      : current.archiveAfter,
   };
 }
 

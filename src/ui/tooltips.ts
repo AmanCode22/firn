@@ -1,6 +1,8 @@
-// Firn's own hover labels, in place of the system's tooltips (Windows'
-// square boxes, macOS's pale ones): a small rounded label that fades in
-// below what's hovered.
+// Firn's own hover labels, in place of Windows' square system tooltips: a
+// small rounded label that fades in below what's hovered. On a Mac, the
+// system's own tooltips instead (they belong there, and aren't held inside
+// the sidebar or the slim top bar), with the same rule: a tab's name only
+// when it's cut off.
 //
 // Buttons keep their plain `title="…"` in the code; this moves each one to
 // `data-tip` as it appears (so the system's tooltip never shows) and gives
@@ -25,11 +27,25 @@ const BOX_ROOM = 12;
 const BOX_TOP = 2;
 const BAR_TIP_WIDTH = 280;
 
+// A row whose name is fully shown needs no label repeating it; one cut
+// off ("DatHost User Login & Acc…") does.
+const repeatsVisibleText = (el: Element, text: string) => {
+  const shown = [el, ...el.querySelectorAll('*')].find(
+    (e) => e.childElementCount === 0 && e.textContent?.trim() === text,
+  );
+  return !!shown && shown.scrollWidth <= shown.clientWidth;
+};
+
 export function installTooltips(view: string) {
+  // (`?tips=native` lets the checks see the Mac's way elsewhere.)
+  const native =
+    window.firn.platform === 'darwin' ||
+    new URLSearchParams(location.search).get('tips') === 'native';
   const adopt = (el: Element) => {
     const title = el.getAttribute('title');
     if (title === null) return;
-    el.removeAttribute('title');
+    // (On a Mac the title stays, for the system's tooltip.)
+    if (!native) el.removeAttribute('title');
     if (!title) return;
     el.setAttribute('data-tip', title);
     if (!el.hasAttribute('aria-label') && !el.textContent?.trim())
@@ -55,6 +71,30 @@ export function installTooltips(view: string) {
     attributes: true,
     attributeFilter: ['title'],
   });
+
+  // A Mac: the system shows each title. Only a row whose name is fully
+  // shown loses its title while hovered, so the system doesn't repeat it.
+  let quieted: Element | null = null;
+  if (native) {
+    const restore = () => {
+      const el = quieted;
+      quieted = null;
+      const text = el?.getAttribute('data-tip');
+      if (el && text && !el.hasAttribute('title'))
+        el.setAttribute('title', text);
+    };
+    document.addEventListener('pointerover', (e) => {
+      const el = (e.target as Element).closest?.('[data-tip]') ?? null;
+      if (el === quieted) return;
+      restore();
+      if (el && repeatsVisibleText(el, el.getAttribute('data-tip') ?? '')) {
+        quieted = el;
+        el.removeAttribute('title');
+      }
+    });
+    document.documentElement.addEventListener('pointerleave', restore);
+    return;
+  }
 
   const tip = document.createElement('div');
   tip.className = 'firn-tip';
@@ -87,15 +127,6 @@ export function installTooltips(view: string) {
       right: Math.min(innerWidth, r.right),
       bottom: Math.min(innerHeight, r.bottom),
     };
-  };
-
-  // A row whose name is fully shown needs no label repeating it; one cut
-  // off ("DatHost User Login & Acc…") does.
-  const repeatsVisibleText = (el: Element, text: string) => {
-    const shown = [el, ...el.querySelectorAll('*')].find(
-      (e) => e.childElementCount === 0 && e.textContent?.trim() === text,
-    );
-    return !!shown && shown.scrollWidth <= shown.clientWidth;
   };
 
   const place = (el: Element) => {

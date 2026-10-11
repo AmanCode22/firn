@@ -23,7 +23,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import started from 'electron-squirrel-startup';
 import { loadSession, SaveScheduler, saveSession, sessionPath } from './store';
 import type { Page, PageContextMenu } from './engine/engine';
 import { ElectronEngine } from './engine/electron';
@@ -33,8 +32,9 @@ import { AdBlocker } from './adblock';
 import {
   askToBeDefault,
   defaultBrowserState,
-  handleWindowsInstallerEvent,
   linksFromArguments,
+  registerWindowsBrowser,
+  unregisterWindowsBrowser,
   type DefaultBrowserState,
 } from './defaultBrowser';
 import { SafeBrowsing, type Threat } from './safebrowsing';
@@ -52,6 +52,8 @@ import { startUpdates } from './updates';
 import { DEMO, demoBounds, installDemoHooks, useDemoProfile } from './demo';
 import { macMenuTemplate } from './menu';
 import { matchShortcut, menuAccelerator } from './shortcuts';
+import { ARCHIVE_CHOICES, isOld, noteDayUsed } from './archive';
+import { handleInstallerEvent } from './installer';
 import type {
   CarryTab,
   CommandAction,
@@ -63,10 +65,13 @@ import type {
   WindowState,
 } from './types';
 
-// Windows: the installer's events also list Firn among the browsers (or
-// take it off the list), before the shortcuts are made and Firn quits.
-handleWindowsInstallerEvent();
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
+// Windows: started by the installer (install, update, or uninstall), Firn
+// makes or removes its Start menu entry and its place among the browsers,
+// and quits (src/installer.ts).
+const started = handleInstallerEvent({
+  register: registerWindowsBrowser,
+  unregister: unregisterWindowsBrowser,
+});
 if (started) {
   app.quit();
 }
@@ -83,9 +88,8 @@ const receiveLinks = (urls: string[]) => {
   if (app.isReady() && !BrowserWindow.getAllWindows().length) createWindow();
 };
 
-// Windows: Firn's taskbar button and pins belong with the Start menu and
-// desktop shortcuts the installer makes (the installer's own name for
-// Firn). And Windows' list of installed apps shows Firn's own icon: the
+// Windows: Firn's taskbar button and pins belong with the Start menu
+// entry the installer makes (the installer's own name for Firn). And Windows' list of installed apps shows Firn's own icon: the
 // installer fetches it from the web while installing (see
 // forge.config.mts), and in case that failed, Firn also points the list
 // at its own app file.
@@ -130,6 +134,12 @@ const SIDEBAR_WIDTH = 260;
 const SIDEBAR_MIN = process.platform === 'darwin' ? 224 : 200;
 const SIDEBAR_MAX = 360;
 const GLIDE_MS = 200; // matches --motion in styles.css
+// Archiving old tabs (src/archive.ts): the first look a little after Firn
+// opens (out of the way of the start), then every hour.
+const TIDY_FIRST_MS = 8000;
+const TIDY_EVERY_MS = 60 * 60 * 1000;
+// Archived tabs are forgotten after this many days of use (still in History).
+const ARCHIVE_KEEP_DAYS = 30;
 // The peeking sidebar is forgiving to the left and quick to the right:
 // anywhere to its left (even off the window, onto another screen) counts as
 // "on it", but once the mouse is this far past its right edge, back over the
@@ -233,14 +243,18 @@ const UI_WEB_PREFERENCES = {
 type LayerView = 'floating' | 'topbar' | 'peek';
 
 function loadUi(web: WebContents, view?: LayerView) {
+  const query: Record<string, string> = view ? { view } : {};
+  // (The checks see a Mac's own hover labels elsewhere: src/ui/tooltips.ts.)
+  if (process.env.FIRN_NATIVE_TIPS_TEST === '1') query.tips = 'native';
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     const url = new URL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-    if (view) url.searchParams.set('view', view);
+    for (const [key, value] of Object.entries(query))
+      url.searchParams.set(key, value);
     web.loadURL(url.toString());
   } else {
     web.loadFile(
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
-      view ? { query: { view } } : undefined,
+      Object.keys(query).length ? { query } : undefined,
     );
   }
 }
@@ -1534,6 +1548,8 @@ const createWindow = () => {
     saveSettings(settingsFile, settings);
     send('settings:state', settingsState());
     syncTopBar();
+    // (A shorter time may make some tabs old right away.)
+    tidyOldTabs();
   };
 
   // Downloads go straight to the Downloads folder; the sidebar shows them.
@@ -2551,6 +2567,9 @@ const createWindow = () => {
       case 'shortcuts':
         showOverlay({ mode: 'shortcuts', openId: ++commandOpenId });
         break;
+      case 'archive':
+        showOverlay({ mode: 'archive', openId: ++commandOpenId });
+        break;
     }
   };
 
@@ -2852,6 +2871,10 @@ const createWindow = () => {
           accelerator: menuAccelerator('history', process.platform),
           click: () => openHistory(),
         },
+        {
+          label: 'Archived tabs',
+          click: () => runAction('archive', ''),
+        },
         { label: 'Passwords', click: () => openPasswords() },
         {
           label: 'Downloads',
@@ -2865,6 +2888,38 @@ const createWindow = () => {
         },
         { label: "What's new", click: () => openWhatsNew('') },
       ]).popup({ window: win }),
+    // The archive box's right-click menu: open it, or choose how long.
+    'archive:menu': () =>
+      Menu.buildFromTemplate([
+        { label: 'Show archived tabs', click: () => runAction('archive', '') },
+        { type: 'separator' },
+        {
+          label: "Archive tabs you haven't used for",
+          submenu: ARCHIVE_CHOICES.map((days) => ({
+            label: days === 0 ? 'Never' : days === 1 ? '1 day' : `${days} days`,
+            type: 'radio' as const,
+            checked: settings.archiveAfter === days,
+            click: () => changeSettings({ archiveAfter: days }),
+          })),
+        },
+      ]).popup({ window: win }),
+    // The Archive: bring a tab back (in its space, if that's still there),
+    // or forget it.
+    'archive:restore': (_sender, id) => {
+      if (typeof id !== 'string') return;
+      const tab = tabs.takeArchived(id);
+      if (!tab) return;
+      hideOverlay();
+      if (spaces.some((s) => s.id === tab.spaceId)) switchSpace(tab.spaceId);
+      tabs.create(tab.url);
+      send('archive:changed');
+      saver.schedule();
+    },
+    'archive:remove': (_sender, id) => {
+      if (typeof id !== 'string' || !tabs.takeArchived(id)) return;
+      send('archive:changed');
+      saver.schedule();
+    },
     'history:remove': (_sender, url) => {
       if (typeof url !== 'string') return;
       history.remove(url);
@@ -3152,6 +3207,9 @@ const createWindow = () => {
       ? passwords.reveal(id)
       : null,
   );
+  ipcMain.handle('archive:list', (event: IpcMainInvokeEvent) =>
+    uiContents.includes(event.sender) ? tabs.archive : [],
+  );
   ipcMain.handle('history:list', (event: IpcMainInvokeEvent, query: unknown) =>
     uiContents.includes(event.sender) && typeof query === 'string'
       ? history.list(query.slice(0, 200), 400)
@@ -3379,6 +3437,11 @@ const createWindow = () => {
   };
   nativeTheme.on('updated', onThemeChange);
 
+  // The days Firn was used (for archiving old tabs: src/archive.ts).
+  let daysUsed = noteDayUsed(saved?.daysUsed ?? [], Date.now());
+  // (Set once the tabs are back, below.)
+  let tidyOldTabs = () => {};
+
   // Save the whole session at once, a moment after anything changes, and
   // right away when the window closes.
   const saver = new SaveScheduler(() => {
@@ -3394,6 +3457,8 @@ const createWindow = () => {
       recentlyClosed: tabs.closedUrls,
       splits: tabs.splitGroups,
       siteZoom: tabs.siteZooms,
+      archive: tabs.archive,
+      daysUsed,
     });
   });
   for (const event of ['resize', 'move', 'maximize', 'unmaximize'] as const)
@@ -3416,6 +3481,7 @@ const createWindow = () => {
     ipcMain.removeHandler('command:tabs');
     ipcMain.removeHandler('history:search');
     ipcMain.removeHandler('history:list');
+    ipcMain.removeHandler('archive:list');
     ipcMain.removeHandler('passwords:list');
     ipcMain.removeHandler('passwords:reveal');
     nativeTheme.removeListener('updated', onThemeChange);
@@ -3455,6 +3521,35 @@ const createWindow = () => {
     tabs.create(tab.url, { restore: tab, activate: false });
   }
   tabs.restoreSplits(saved?.splits);
+  tabs.restoreArchive(saved?.archive);
+  // Old everyday tabs tidy themselves away into the Archive: a little after
+  // Firn opens, then every hour (each check also notes that today Firn was
+  // used, for a window left open overnight).
+  tidyOldTabs = () => {
+    daysUsed = noteDayUsed(daysUsed, Date.now());
+    const archived = tabs.archiveOld((lastActiveAt) =>
+      isOld(lastActiveAt, daysUsed, settings.archiveAfter),
+    );
+    const forgotten = tabs.forgetArchived((archivedAt) =>
+      isOld(archivedAt, daysUsed, ARCHIVE_KEEP_DAYS),
+    );
+    if (archived || forgotten) {
+      debug(`archived ${archived} old tab(s), forgot ${forgotten}`);
+      // (The archive box in the sidebar gives a little pulse.)
+      send('archive:changed', archived);
+    }
+    saver.schedule();
+  };
+  const tidyTimer = setTimeout(() => {
+    if (!win.isDestroyed()) tidyOldTabs();
+  }, TIDY_FIRST_MS);
+  const tidyEvery = setInterval(() => {
+    if (!win.isDestroyed()) tidyOldTabs();
+  }, TIDY_EVERY_MS);
+  win.on('closed', () => {
+    clearTimeout(tidyTimer);
+    clearInterval(tidyEvery);
+  });
   console.log(
     savedTabs.length
       ? `[Firn] Restored ${savedTabs.length} tab(s) from ${sessionPath()}`

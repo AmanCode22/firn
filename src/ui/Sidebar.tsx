@@ -13,6 +13,7 @@ import { Basecamp } from './Basecamp';
 import { SpaceHeader, SpaceIconPicker, SpaceSwitcher } from './Spaces';
 import { SpaceTabs } from './SpaceTabs';
 import {
+  ArchiveIcon,
   BackIcon,
   FirnMarkIcon,
   ForwardIcon,
@@ -223,8 +224,8 @@ export function Sidebar({
 
       <MiniPlayer player={tabs.player} />
 
-      {/* The Firn menu at the left, the spaces centered beside it (the
-          same room is kept free on the right, so they stay centered). */}
+      {/* The Firn menu at the left, the archive box at the right, the
+          spaces centered between them. */}
       <div className="sidebar-bottom">
         <button
           className="icon-button firn-menu-button"
@@ -234,7 +235,7 @@ export function Sidebar({
           <FirnMarkIcon />
         </button>
         <SpaceSwitcher {...spaces} />
-        <span className="sidebar-bottom-balance" aria-hidden />
+        <ArchiveBox />
       </div>
 
       {space && picking?.id === space.id && (
@@ -329,4 +330,41 @@ function useTrafficLights(row: React.RefObject<HTMLDivElement | null>) {
       w.frame = 0;
     };
   }, []);
+}
+
+// The archive box: opens the Archive (right-click: how long until tabs are
+// tidied away). When Firn tidies tabs away, it gives a little pulse, so
+// people see where they went: its lid lifts and settles, and a soft ring in
+// the space's color spreads out and fades.
+function ArchiveBox() {
+  const [pulse, setPulse] = useState(0);
+  useEffect(
+    () =>
+      window.firn.onArchiveChanged((tidied) => {
+        if (tidied > 0) setPulse((n) => n + 1);
+      }),
+    [],
+  );
+  return (
+    <button
+      className="icon-button archive-button"
+      title="Archived tabs"
+      data-testid="archive-box"
+      onClick={() => window.firn.runAction('archive')}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        window.firn.showArchiveMenu();
+      }}
+    >
+      {pulse > 0 && (
+        <span key={`ring-${pulse}`} className="archive-ring" aria-hidden />
+      )}
+      <span
+        key={`icon-${pulse}`}
+        className={pulse > 0 ? 'archive-icon is-pulsing' : 'archive-icon'}
+      >
+        <ArchiveIcon />
+      </span>
+    </button>
+  );
 }

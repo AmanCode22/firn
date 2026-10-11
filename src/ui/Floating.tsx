@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { isSearch, SEARCH_ENGINES, toNavigableUrl } from '../url';
 import type {
+  ArchivedTab,
   CarryTab,
   CommandAction,
   FindResult,
@@ -109,6 +110,9 @@ export function Floating() {
   }
   if (overlay.mode === 'shortcuts') {
     return <ShortcutsPanel key={overlay.openId} />;
+  }
+  if (overlay.mode === 'archive') {
+    return <ArchivePanel key={overlay.openId} spaces={spaces} />;
   }
   if (overlay.mode === 'find') {
     return <FindBar key={overlay.openId} initialText={overlay.text} />;
@@ -397,6 +401,11 @@ function actionsFor(
       action: 'shortcuts',
       label: 'Keyboard shortcuts',
       words: 'keyboard shortcuts keys hotkeys',
+    },
+    {
+      action: 'archive',
+      label: 'Archived tabs',
+      words: 'archive archived old tabs tidied closed',
     },
   );
   for (const space of spaces.spaces)
@@ -1075,6 +1084,134 @@ function HistoryPanel() {
   );
 }
 
+// --- Archived tabs ------------------------------------------------------------
+// Tabs tidied away for not being used (src/archive.ts), newest first, by
+// the space they were in. Click one to bring it back there; × forgets it
+// (it's still in History).
+
+function ArchivePanel({ spaces }: { spaces: SpacesState }) {
+  const [tabs, setTabs] = useState<ArchivedTab[] | null>(null);
+  const [version, setVersion] = useState(0);
+  useEffect(
+    () => window.firn.onArchiveChanged(() => setVersion((v) => v + 1)),
+    [],
+  );
+  useEffect(() => {
+    let current = true;
+    window.firn.listArchive().then((list) => current && setTabs(list));
+    return () => {
+      current = false;
+    };
+  }, [version]);
+  const close = () => window.firn.closeOverlay();
+  // By space, in the sidebar's order (a space that's gone last).
+  const groups = useMemo(() => {
+    const order = new Map(spaces.spaces.map((s, i) => [s.id, i]));
+    const bySpace = new Map<string, ArchivedTab[]>();
+    for (const tab of tabs ?? []) {
+      const key = order.has(tab.spaceId) ? tab.spaceId : '';
+      bySpace.set(key, [...(bySpace.get(key) ?? []), tab]);
+    }
+    return [...bySpace.entries()]
+      .sort(
+        ([a], [b]) => (order.get(a) ?? Infinity) - (order.get(b) ?? Infinity),
+      )
+      .map(([id, items]) => ({
+        label: spaces.spaces.find((s) => s.id === id)?.name ?? 'Other',
+        items,
+      }));
+  }, [tabs, spaces]);
+
+  return (
+    <div
+      className="backdrop is-sheet"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) close();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') close();
+      }}
+    >
+      <div
+        className="panel sheet history-sheet"
+        role="dialog"
+        aria-label="Archived tabs"
+        tabIndex={-1}
+      >
+        <header className="sheet-header">
+          <h2>Archived tabs</h2>
+          <button className="icon-button" title="Close (Esc)" onClick={close}>
+            <CloseIcon />
+          </button>
+        </header>
+        <div className="sheet-body">
+          {tabs && tabs.length === 0 && (
+            <p className="sheet-empty">
+              Tabs you haven't used for a while will be tidied away here.
+            </p>
+          )}
+          {groups.map(({ label, items }) => (
+            <section key={label} className="history-day">
+              <h3>{label}</h3>
+              {items.map((tab) => (
+                <div
+                  key={tab.id}
+                  className="history-row"
+                  data-testid="archived-tab"
+                  title={tab.url}
+                  onClick={() => window.firn.restoreArchived(tab.id)}
+                >
+                  <span className="tab-icon">
+                    <HistoryFavicon url={tab.favicon} />
+                  </span>
+                  <span className="history-title">
+                    {tab.title || shortUrl(tab.url)}
+                  </span>
+                  <span className="history-site">{siteName(tab.url)}</span>
+                  <span className="history-time">
+                    {archivedWhen(tab.archivedAt)}
+                  </span>
+                  <button
+                    className="icon-button history-remove"
+                    title="Remove from the archive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.firn.removeArchived(tab.id);
+                    }}
+                  >
+                    <CloseIcon />
+                  </button>
+                </div>
+              ))}
+            </section>
+          ))}
+        </div>
+        <footer className="sheet-footer">
+          <span>Archived tabs are also in your history.</span>
+          <button className="sheet-button" onClick={close} autoFocus>
+            Done
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+// When a tab was archived, in plain words.
+function archivedWhen(time: number) {
+  const days = Math.floor(
+    (new Date().setHours(0, 0, 0, 0) - new Date(time).setHours(0, 0, 0, 0)) /
+      86_400_000,
+  );
+  if (days <= 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  return new Date(time).toLocaleDateString([], {
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 function HistoryFavicon({ url }: { url: string }) {
   const [broken, setBroken] = useState(false);
   if (!url || broken) return <GlobeIcon />;
@@ -1277,6 +1414,46 @@ function SettingsPanel({ state }: { state: SettingsState | null }) {
               </div>
             </section>
 
+            <section className="settings-group">
+              <h3>Tabs</h3>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span>Archive tabs you haven't used for</span>
+                  <small>
+                    Everyday tabs only: pinned tabs, Basecamp, and the tab
+                    you're on stay. Find them again in Archived tabs.
+                  </small>
+                </div>
+                <Dropdown
+                  label="Archive tabs you haven't used for"
+                  value={String(state.settings.archiveAfter)}
+                  options={[
+                    { value: '1', label: '1 day' },
+                    { value: '7', label: '7 days' },
+                    { value: '30', label: '30 days' },
+                    { value: '0', label: 'Never' },
+                  ]}
+                  onChange={(value) =>
+                    change({
+                      archiveAfter: Number(value) as Settings['archiveAfter'],
+                    })
+                  }
+                />
+              </div>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span>Archived tabs</span>
+                  <small>Bring back any tab that was tidied away.</small>
+                </div>
+                <button
+                  className="sheet-button"
+                  data-testid="show-archive"
+                  onClick={() => window.firn.runAction('archive')}
+                >
+                  Show…
+                </button>
+              </div>
+            </section>
             <section className="settings-group">
               <h3>Downloads</h3>
               <div className="settings-row">

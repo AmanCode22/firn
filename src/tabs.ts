@@ -22,6 +22,7 @@ import type {
 } from './engine/engine';
 import { toNavigableUrl } from './url';
 import type {
+  ArchivedTab,
   FindResult,
   NavCommand,
   NavState,
@@ -58,6 +59,8 @@ export const BASECAMP_MAX = 12;
 const BASECAMP = 0;
 const PINNED = 1;
 const EVERYDAY = 2;
+// The Archive keeps this many tabs (older ones are still in History).
+const ARCHIVE_MAX = 200;
 const groupOf = (tab: Tab) =>
   tab.basecamp ? BASECAMP : tab.pinned ? PINNED : EVERYDAY;
 
@@ -397,6 +400,107 @@ export class TabManager {
     if (activate || (!this.activeId && !restore)) this.activate(id);
     else this.emitTabs();
     return id;
+  }
+
+  // --- Archiving old tabs ---------------------------------------------------
+  // Everyday tabs not looked at for a while tidy themselves away into the
+  // Archive (src/archive.ts decides what's old), where they can be brought
+  // back. Never archived: pinned and Basecamp tabs, the tab on screen and
+  // each space's current tab, a tab playing sound, and a tab in split view.
+
+  private archived: ArchivedTab[] = [];
+
+  // The Archive, newest first.
+  get archive(): ArchivedTab[] {
+    return this.archived.map((tab) => ({ ...tab }));
+  }
+
+  restoreArchive(saved: unknown) {
+    if (!Array.isArray(saved)) return;
+    this.archived = saved
+      .filter(
+        (t): t is ArchivedTab =>
+          !!t &&
+          typeof t.id === 'string' &&
+          typeof t.url === 'string' &&
+          typeof t.spaceId === 'string' &&
+          typeof t.archivedAt === 'number',
+      )
+      .map((t) => ({
+        id: t.id,
+        url: t.url,
+        title: typeof t.title === 'string' ? t.title : '',
+        favicon: typeof t.favicon === 'string' ? t.favicon : '',
+        spaceId: t.spaceId,
+        archivedAt: t.archivedAt,
+      }))
+      .slice(0, ARCHIVE_MAX);
+  }
+
+  // Archives the everyday tabs `isOld` says haven't been looked at for long
+  // enough (by when they last were). Returns how many.
+  archiveOld(isOld: (lastActiveAt: number) => boolean) {
+    const kept = new Set<string | null>([
+      this.activeId,
+      ...this.onScreen,
+      ...this.lastInSpace.values(),
+    ]);
+    // Each space's most recent tab too (Firn only knows a space's current
+    // tab once it has been shown), so no space is left empty.
+    const newest = new Map<string, Tab>();
+    for (const { tab } of this.entries.values())
+      if (
+        !tab.basecamp &&
+        (newest.get(tab.spaceId)?.lastActiveAt ?? -1) < tab.lastActiveAt
+      )
+        newest.set(tab.spaceId, tab);
+    for (const tab of newest.values()) kept.add(tab.id);
+    const old = this.order.filter((id) => {
+      const entry = this.entries.get(id);
+      return (
+        !!entry &&
+        groupOf(entry.tab) === EVERYDAY &&
+        !kept.has(id) &&
+        !entry.tab.splitGroupId &&
+        !entry.page.audible &&
+        isOld(entry.tab.lastActiveAt)
+      );
+    });
+    if (!old.length) return 0;
+    const now = Date.now();
+    for (const id of old) {
+      const { tab, page } = this.entries.get(id)!;
+      this.order.splice(this.order.indexOf(id), 1);
+      this.entries.delete(id);
+      page.destroy();
+      this.archived.unshift({
+        id,
+        url: tab.url,
+        title: tab.title,
+        favicon: tab.favicon,
+        spaceId: tab.spaceId,
+        archivedAt: now,
+      });
+    }
+    this.archived = this.archived.slice(0, ARCHIVE_MAX);
+    this.renumber();
+    this.emitTabs();
+    return old.length;
+  }
+
+  // Takes a tab out of the Archive (to bring it back, or to forget it).
+  // Forgets archived tabs that have rested long enough (they stay in
+  // History); returns how many.
+  forgetArchived(isOld: (archivedAt: number) => boolean) {
+    const before = this.archived.length;
+    this.archived = this.archived.filter((tab) => !isOld(tab.archivedAt));
+    return before - this.archived.length;
+  }
+
+  takeArchived(id: string): ArchivedTab | undefined {
+    const index = this.archived.findIndex((tab) => tab.id === id);
+    if (index < 0) return undefined;
+    return this.archived.splice(index, 1)[0];
   }
 
   // --- Spaces ---------------------------------------------------------------
