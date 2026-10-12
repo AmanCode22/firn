@@ -1,5 +1,25 @@
 # What's new in Firn
 
+## Firn 0.7.3
+
+**Check for updates yourself, and a signed Firn for Windows.**
+
+Settings now shows which version of Firn you have and whether a newer one is on its way, with a button to check right now. And Firn for Windows now carries a digital signature with its maker's name, so Windows knows where it came from.
+
+### New
+
+- **Settings > Updates** shows your version and where updates are: up to date, downloading, or ready. **Check for updates** looks right away, and **Restart now** finishes an update that's waiting.
+
+### Better
+
+- **Firn for Windows is now signed.** The installer and Firn itself carry a digital signature, so Windows shows who made them instead of "Unknown publisher". Its warnings about new downloads should ease off over time.
+- **The sidebar is lighter.** When something changes in one tab, Firn now redraws just that tab, not the whole list.
+
+### Fixed
+
+- **A search box at the very top of a website** (like the Azure portal's) works again. On Windows, the slim bar with the window buttons used to slide down over it and push the page away from your mouse. Now the bar comes down only when you rest the mouse against the very top edge of the screen or window.
+- **On Windows, a taskbar pin** made from a running Firn could keep opening an old version after an update. New pins always open the newest Firn.
+
 ## Firn 0.7.2
 
 **Safer passwords, and a lighter Firn.**
