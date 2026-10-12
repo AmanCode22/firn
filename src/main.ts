@@ -156,6 +156,13 @@ const UI_START_TIMEOUT_MS = 5000;
 
 // How often the cursor's position is checked for the edge reveals.
 const EDGE_CHECK_MS = 30;
+// ...less often while Firn isn't the window in front (its edges still
+// answer the mouse, a moment slower), and rarely while it's minimized or
+// hidden, so a Firn left open in the background stays idle.
+const EDGE_CHECK_BACKGROUND_MS = 250;
+const EDGE_CHECK_AWAY_MS = 1000;
+// The session is saved this long after a change (never later).
+const SESSION_SAVE_MS = 2000;
 // How generous the left-edge zone that brings out the peeking sidebar is:
 // a little past the window's edge, and a little way into the page. (Just
 // the thin frame strip proved far too easy to miss.)
@@ -757,6 +764,7 @@ const createWindow = () => {
     shownLayers.add(layer);
     layer.setBounds(boundsFor(layer));
     layer.setVisible(true);
+    layer.webContents.send('layer:shown', true);
     raiseLayers();
     return true;
   };
@@ -766,6 +774,8 @@ const createWindow = () => {
     shownLayers.delete(layer);
     layer.setVisible(false);
     layer.setBounds(NO_BOUNDS);
+    if (!layer.webContents.isDestroyed())
+      layer.webContents.send('layer:shown', false);
   };
 
   let overlay: OverlayState = { mode: 'hidden' };
@@ -906,6 +916,17 @@ const createWindow = () => {
       return;
     }
     if (shownPermission || overlay.mode !== 'hidden' || lookout) return;
+    // A request settled by an answer given since it came (a site often
+    // asks twice before you answer): not asked again.
+    pendingPermissions = pendingPermissions.filter((p) => {
+      const decisions = p.ask.map((kind) =>
+        sitePermissions.get(p.request.origin, kind, p.request.detail),
+      );
+      if (decisions.includes('block')) p.request.respond(false);
+      else if (decisions.every((d) => d === 'allow')) p.request.respond(true);
+      else return true;
+      return false;
+    });
     const next = pendingPermissions.find((p) => tabs.isOnScreen(p.tabId));
     if (!next) return;
     pendingPermissions = pendingPermissions.filter((p) => p !== next);
@@ -928,6 +949,16 @@ const createWindow = () => {
       for (const kind of ask)
         sitePermissions.set(request.origin, kind, request.detail, answer);
     request.respond(answer === 'allow');
+    // The same question from the same tab, still waiting, gets the same
+    // answer (also "not now", which isn't saved).
+    pendingPermissions = pendingPermissions.filter((p) => {
+      const same =
+        p.tabId === shown.tabId &&
+        p.request.origin === request.origin &&
+        p.ask.every((kind) => ask.includes(kind));
+      if (same) p.request.respond(answer === 'allow');
+      return !same;
+    });
     hideOverlay();
     sendNav();
   };
@@ -2084,9 +2115,26 @@ const createWindow = () => {
   // the window buttons. This checks the cursor's position directly rather
   // than waiting for hover events, which never fire again while the pointer
   // stays pressed against the screen's edge (e.g. a maximized window).
-  const edgeWatch = setInterval(() => {
-    if (win.isDestroyed() || !win.isVisible() || win.isMinimized()) return;
-    if (isFullscreen()) return;
+  let edgeWatch: ReturnType<typeof setTimeout> | undefined;
+  const watchEdges = () => {
+    if (win.isDestroyed()) return;
+    const away = !win.isVisible() || win.isMinimized() || isFullscreen();
+    edgeWatch = setTimeout(
+      watchEdges,
+      away
+        ? EDGE_CHECK_AWAY_MS
+        : win.isFocused()
+          ? EDGE_CHECK_MS
+          : EDGE_CHECK_BACKGROUND_MS,
+    );
+    if (!away) checkEdges();
+  };
+  // Back in front: straight to the quick checks.
+  win.on('focus', () => {
+    clearTimeout(edgeWatch);
+    watchEdges();
+  });
+  const checkEdges = () => {
     const cursor = screen.getCursorScreenPoint();
     const content = win.getContentBounds();
     // Measure from the part of the window that's actually on screen: a
@@ -2118,7 +2166,8 @@ const createWindow = () => {
       revealTopBar(true);
     }
     watchSplitHandle(cursor.x - content.x, cursor.y - content.y);
-  }, EDGE_CHECK_MS);
+  };
+  watchEdges();
 
   // Right-click menu for a web page: only the few things that fit what was
   // clicked (a link, an image, selected text, a text box), in plain words.
@@ -3461,7 +3510,8 @@ const createWindow = () => {
       archive: tabs.archive,
       daysUsed,
     });
-  });
+    // (At most every 2 seconds, however busy the tabs are.)
+  }, SESSION_SAVE_MS);
   // Back from being minimized, a page could stay blank until something on
   // screen changed (a known Electron problem): draw what's on screen again,
   // once right away and once the window has settled.
@@ -3508,7 +3558,7 @@ const createWindow = () => {
     clearTimeout(lookoutTimer);
     clearInterval(lookoutGlide);
     clearInterval(peekWatch);
-    clearInterval(edgeWatch);
+    clearTimeout(edgeWatch);
     clearTimeout(peekHideTimer);
     clearInterval(glide);
     for (const layer of [floating, topBar, peek])
@@ -3600,7 +3650,10 @@ const createWindow = () => {
 // (Demo mode first moves Firn's data to its throwaway folder.)
 useDemoProfile();
 installDemoHooks();
-const isFirstInstance = app.requestSingleInstanceLock();
+// (Not for the installer's own short start: asking for the lock would
+// tell a Firn that's already running, which then comes to the front, e.g.
+// when an update finishes installing in the background.)
+const isFirstInstance = !started && app.requestSingleInstanceLock();
 if (!isFirstInstance) app.quit();
 
 app.on('second-instance', (_event, argv) => {

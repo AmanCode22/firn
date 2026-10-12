@@ -14,6 +14,7 @@ import {
 } from './icons';
 import { useFollowPointer } from './followPointer';
 import { carry, CARRY_AFTER, dragOverPage } from './splitDrag';
+import { layerShown } from './quietWhenHidden';
 import { TabIcon, TabSound, tabTitle } from './TabList';
 
 // A space's tabs as one list: its pinned tabs, the divider (with "Clear"),
@@ -112,7 +113,8 @@ export function SpaceTabs({
   useLayoutEffect(() => {
     const was = before.current;
     before.current = null;
-    if (!was || !listRef.current) return;
+    // (No glides in a layer that's put away: nothing would draw them.)
+    if (!was || !listRef.current || !layerShown()) return;
     for (const el of itemElements(listRef.current)) {
       const key = el.dataset.item!;
       const from = was.get(key);

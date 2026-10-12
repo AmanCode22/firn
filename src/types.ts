@@ -526,6 +526,8 @@ export interface FirnBridge {
   hideTip(): void;
   tipSize(width: number, height: number): void;
   onTipState(listener: (state: TipState) => void): () => void;
+  // This layer was put on screen or away (see src/ui/quietWhenHidden.ts).
+  onLayerShown(listener: (shown: boolean) => void): () => void;
   onCarryState(listener: (carry: CarryTab | null) => void): () => void;
   onSplitHandleState(listener: (state: SplitHandleState) => void): () => void;
   ready(): void;

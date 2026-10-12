@@ -41,16 +41,19 @@ export function loadSession(): SavedSession | null {
   }
 }
 
+// What was last written (nothing changed: nothing to write).
+let lastWritten = '';
+
 export function saveSession(session: Omit<SavedSession, 'version'>) {
   const file = sessionPath();
   const temp = `${file}.tmp`;
   try {
+    const text = JSON.stringify({ version: SESSION_VERSION, ...session });
+    if (text === lastWritten) return;
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(
-      temp,
-      JSON.stringify({ version: SESSION_VERSION, ...session }),
-    );
+    fs.writeFileSync(temp, text);
     fs.renameSync(temp, file);
+    lastWritten = text;
   } catch (error) {
     console.error('[Firn] Could not save the session:', error);
   }
@@ -58,6 +61,9 @@ export function saveSession(session: Omit<SavedSession, 'version'>) {
 
 // Collects many changes into one write a moment later, so busy moments
 // (pages loading, tabs being dragged) don't write the file over and over.
+// The first change starts the wait and later ones join it, so a save always
+// comes within the delay, even while something keeps changing (a page
+// whose title ticks every second used to put it off until Firn closed).
 export class SaveScheduler {
   private timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -67,7 +73,7 @@ export class SaveScheduler {
   ) {}
 
   schedule() {
-    clearTimeout(this.timer);
+    if (this.timer) return;
     this.timer = setTimeout(() => this.flush(), this.delayMs);
   }
 
@@ -80,5 +86,6 @@ export class SaveScheduler {
 
   cancel() {
     clearTimeout(this.timer);
+    this.timer = undefined;
   }
 }
