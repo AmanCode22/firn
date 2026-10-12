@@ -136,7 +136,12 @@ export function Sidebar({
 }) {
   const space = spaces.spaces.find((s) => s.id === spaces.activeSpaceId);
   const topRow = useRef<HTMLDivElement>(null);
-  useTrafficLights(topRow);
+  // (Only what can move the top row: where the sidebar is drawn, its look,
+  // and whether it's tucked away; not every update to the tabs.)
+  useTrafficLights(
+    topRow,
+    `${className}|${barOnTop}|${collapsed}|${JSON.stringify(style ?? {})}`,
+  );
   // Which space's name is being edited (only shown while it's the active
   // space).
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -292,13 +297,16 @@ export function NavButtons({ nav }: { nav: NavState }) {
 // macOS: the window's traffic lights sit in the sidebar's top row, but
 // macOS draws them, not this layer. So that they move with the row (when the
 // sidebar slides out and back, or peeks), this reports where the row is
-// drawn, frame by frame for a little while after anything changes (the
-// sidebar re-renders on every step of a slide). Each report goes out a
+// drawn, frame by frame for a little while after it may have moved (`moved`
+// changes on every step of a slide). Each report goes out a
 // frame late: the row reaches the screen about a frame after it's measured,
 // while the lights move at once.
 const LIGHTS_WATCH_MS = 500;
 
-function useTrafficLights(row: React.RefObject<HTMLDivElement | null>) {
+function useTrafficLights(
+  row: React.RefObject<HTMLDivElement | null>,
+  moved: string,
+) {
   const watch = useRef({ until: 0, frame: 0, sent: '', next: '' });
   useEffect(() => {
     if (window.firn.platform !== 'darwin') return;
@@ -322,7 +330,7 @@ function useTrafficLights(row: React.RefObject<HTMLDivElement | null>) {
       }
     };
     w.frame = requestAnimationFrame(tick);
-  });
+  }, [moved, row]);
   useEffect(() => {
     const w = watch.current;
     return () => {

@@ -49,8 +49,14 @@ import { isLiquidGlass, pageRadius } from './frame';
 import { cleanSettings, loadSettings, saveSettings } from './settings';
 import { isSpaceIcon, SPACE_ICON_NAMES, toSpaceIcon } from './spaceIcons';
 import { BASECAMP_MAX, TabManager } from './tabs';
-import { startUpdates } from './updates';
-import { DEMO, demoBounds, installDemoHooks, useDemoProfile } from './demo';
+import {
+  checkForUpdates,
+  installUpdate,
+  onUpdateState,
+  startUpdates,
+  updateState,
+} from './updates';
+import { DEMO, demoBounds, installDemoHooks, applyDemoProfile } from './demo';
 import { macMenuTemplate } from './menu';
 import { matchShortcut, menuAccelerator } from './shortcuts';
 import { ARCHIVE_CHOICES, isOld, noteDayUsed } from './archive';
@@ -197,6 +203,10 @@ const LIGHTS_GONE_X = -60;
 // Once the mouse leaves the bar, wait this long before sliding it away, so
 // brushing past the edge doesn't make it flicker.
 const TOP_BAR_LINGER_MS = 250;
+// The mouse rests at the top edge this long before the bar comes down, so
+// flicking up to a site's own search box or menu doesn't bring it (and move
+// the page out from under the mouse).
+const TOP_BAR_DWELL_MS = 250;
 
 // The window's name (the Dock's menu, the Window menu, the taskbar): the
 // page's title, cut short like the sidebar's tabs (some sites put a whole
@@ -464,6 +474,21 @@ const createWindow = () => {
     trafficLightPosition: LIGHTS_IN_SIDEBAR,
     webPreferences: UI_WEB_PREFERENCES,
   });
+  // Windows: pinning Firn to the taskbar while it runs would remember this
+  // version's own folder (app-0.7.2\Firn.exe), which the next update
+  // leaves behind, so the pin kept opening the old version. Pins point to
+  // the installer's small launcher instead, which always opens the newest.
+  const launcher = path.join(
+    path.dirname(path.dirname(process.execPath)),
+    'Firn.exe',
+  );
+  if (process.platform === 'win32' && app.isPackaged && fs.existsSync(launcher))
+    win.setAppDetails({
+      appId: 'com.squirrel.firn.Firn',
+      relaunchCommand: `"${launcher}"`,
+      relaunchDisplayName: 'Firn',
+      appIconPath: launcher,
+    });
 
   let spaces = usableSpaces(saved?.spaces);
   const windowState: WindowState = {
@@ -1441,9 +1466,13 @@ const createWindow = () => {
   const syncTopBar = (animate = true) => {
     syncTrafficLights();
     if (!readyUi.has(topBar.webContents)) return;
-    clearInterval(topBarWatch);
-    clearTimeout(topBarHideTimer);
+    // (Timers are cancelled only by a branch that takes over: cancelling a
+    // bar's pending hide while it slides away would leave it on screen,
+    // unseen, and on Windows its drag band would keep catching clicks at
+    // the top of the page.)
     if (addressOnTop()) {
+      clearInterval(topBarWatch);
+      clearTimeout(topBarHideTimer);
       topBarShown = true;
       showLayer(topBar);
       send('top-bar:state', true);
@@ -1454,6 +1483,8 @@ const createWindow = () => {
         relayout();
       }
     } else if (topBarShown) {
+      clearInterval(topBarWatch);
+      clearTimeout(topBarHideTimer);
       topBarShown = false;
       send('top-bar:state', false);
       if (isFullscreen()) {
@@ -1571,6 +1602,7 @@ const createWindow = () => {
     settings,
     downloadsFolder: downloadsFolder(),
     version: app.getVersion(),
+    updates: updateState(),
     safeBrowsingAvailable: safeBrowsing.available,
     defaultBrowser,
   });
@@ -2116,6 +2148,7 @@ const createWindow = () => {
   // than waiting for hover events, which never fire again while the pointer
   // stays pressed against the screen's edge (e.g. a maximized window).
   let edgeWatch: ReturnType<typeof setTimeout> | undefined;
+  let topEdgeSince = 0;
   const watchEdges = () => {
     if (win.isDestroyed()) return;
     const away = !win.isVisible() || win.isMinimized() || isFullscreen();
@@ -2152,16 +2185,21 @@ const createWindow = () => {
       cursor.x < left + PEEK_ZONE_INSIDE &&
       cursor.y >= Math.max(top, content.y + (addressOnTop() ? pageTop : 0)) &&
       cursor.y <= bottom;
+    // The strip of frame above the page; where the page itself reaches the
+    // screen's top (a maximized window), only the screen's very top edge,
+    // so a site's own search box or menu up there stays the site's.
     const alongTopEdge =
       cursor.y >= top - 2 &&
-      cursor.y < top + PAGE_INSET &&
+      cursor.y < Math.max(content.y + PAGE_INSET, top + 2) &&
       cursor.x >= content.x + pageLeft &&
       cursor.x <= right + 2;
     if (alongLeftEdge && windowState.sidebarCollapsed && !peeking) {
       debug('left edge reached: peek');
       showPeek();
     }
-    if (alongTopEdge && !topBarShown) {
+    if (!alongTopEdge || topBarShown) topEdgeSince = 0;
+    else if (!topEdgeSince) topEdgeSince = Date.now();
+    else if (Date.now() - topEdgeSince >= TOP_BAR_DWELL_MS) {
       debug('top edge reached: top bar');
       revealTopBar(true);
     }
@@ -2907,6 +2945,10 @@ const createWindow = () => {
       sitePermissions.forgetAll();
       sendNav();
     },
+    // Settings > Updates: "Check for updates", and "Restart now" once a new
+    // version is ready.
+    'updates:check': () => checkForUpdates(),
+    'updates:install': () => installUpdate(),
     'firn:menu': () =>
       Menu.buildFromTemplate([
         {
@@ -3615,6 +3657,11 @@ const createWindow = () => {
     clearTimeout(tidyTimer);
     clearInterval(tidyEvery);
   });
+  // Settings shows where updates are (checking, up to date, ready...).
+  const stopUpdateState = onUpdateState(() =>
+    send('settings:state', settingsState()),
+  );
+  win.on('closed', stopUpdateState);
   console.log(
     savedTabs.length
       ? `[Firn] Restored ${savedTabs.length} tab(s) from ${sessionPath()}`
@@ -3648,7 +3695,7 @@ const createWindow = () => {
 // Only one Firn runs at a time. Opening it again brings the existing window
 // forward instead, so two copies can never overwrite each other's session.
 // (Demo mode first moves Firn's data to its throwaway folder.)
-useDemoProfile();
+applyDemoProfile();
 installDemoHooks();
 // (Not for the installer's own short start: asking for the lock would
 // tell a Firn that's already running, which then comes to the front, e.g.

@@ -209,6 +209,8 @@ const check = (name, ok, extra = '') => {
     });
   const restBox = await pageBox();
   warp(o.x + 700, o.y + 2);
+  // (The bar waits for the mouse to rest at the edge a moment.)
+  await wait(200);
   const samples = [];
   for (let i = 0; i < 12; i++) {
     const [p, t] = await app.evaluate(({ BrowserWindow }) => {

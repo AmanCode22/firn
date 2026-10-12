@@ -39,6 +39,31 @@ const appleApiKeyId = process.env.APPLE_API_KEY_ID;
 const appleApiIssuer = process.env.APPLE_API_ISSUER;
 const signForMac = process.platform === 'darwin' && Boolean(macKeychain);
 
+// Windows: sign Firn with David's certificate from Azure Artifact Signing,
+// so Windows (SmartScreen) knows who made it instead of warning about an
+// "unknown publisher". Only GitHub's Windows build does this: it signs in
+// to Azure (no stored password: GitHub vouches for the build itself) and
+// puts Microsoft's signing add-on (the "dlib") and its settings in files
+// (FIRN_WINDOWS_SIGN_DLIB, FIRN_WINDOWS_SIGN_METADATA; see
+// .github/workflows/build.yml). It signs Firn.exe and its parts, the
+// installer's Update.exe, and Firn Setup.exe. Without them, Firn still
+// builds, unsigned. (No quotes in the paths: GitHub's folders have no
+// spaces, and the installer's signing passes quotes on as they are.)
+const windowsDlib = process.env.FIRN_WINDOWS_SIGN_DLIB;
+const windowsMetadata = process.env.FIRN_WINDOWS_SIGN_METADATA;
+const windowsSign =
+  process.platform === 'win32' && windowsDlib && windowsMetadata
+    ? {
+        // The Windows SDK's signtool (the add-on needs a recent one).
+        signToolPath: process.env.FIRN_WINDOWS_SIGNTOOL,
+        signWithParams: `/dlib ${windowsDlib} /dmdf ${windowsMetadata}`,
+        timestampServer: 'http://timestamp.acs.microsoft.com',
+        // SHA-256 only. (The packager and the installer each bring their
+        // own copy of the signing package, with its own type for this.)
+        hashes: ['sha256'] as never[],
+      }
+    : undefined;
+
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
@@ -91,6 +116,7 @@ const config: ForgeConfig = {
     // The signature (with the "hardened runtime" Apple requires) uses
     // osx-sign's defaults, the same permissions Chrome asks for: camera,
     // microphone, location, and the few others web pages can use.
+    ...(windowsSign && { windowsSign }),
     ...(signForMac && {
       osxSign: { keychain: macKeychain, continueOnError: false },
       ...(appleApiKey &&
@@ -126,7 +152,7 @@ const config: ForgeConfig = {
   makers: [
     // The Windows installer: "Firn Setup.exe". No wizard: it installs in a
     // few seconds (showing Firn's mark while it does), adds Firn to the
-    // Start menu and the desktop, and opens it. Uninstall from Windows'
+    // Start menu (src/installer.ts), and opens it. Uninstall from Windows'
     // Settings > Apps. (No .msi: that's for company-wide installs.)
     new MakerSquirrel({
       setupIcon: './assets/icon.ico',
@@ -137,6 +163,7 @@ const config: ForgeConfig = {
       setupExe: 'Firn Setup.exe',
       loadingGif: './assets/installing.gif',
       noMsi: true,
+      ...(windowsSign && { windowsSign }),
     }),
     new MakerZIP({}, ['darwin']),
     new MakerRpm({}),

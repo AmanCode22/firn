@@ -1,0 +1,27 @@
+<!doctype html>
+<title>Top search</title>
+<body style="margin: 0; font: 14px sans-serif">
+  <!-- Like the Azure portal: a slim header with a search box at the very
+       top of the page. -->
+  <header
+    style="
+      height: 40px;
+      background: #1b1a19;
+      display: flex;
+      align-items: flex-start;
+      padding-top: 4px;
+      box-sizing: border-box;
+      justify-content: center;
+    "
+  >
+    <input
+      id="search"
+      placeholder="Search resources"
+      style="width: 480px; height: 26px"
+    />
+  </header>
+  <p style="padding: 20px">Typed: <span id="typed"></span></p>
+  <script>
+    search.addEventListener('input', () => (typed.textContent = search.value));
+  </script>
+</body>

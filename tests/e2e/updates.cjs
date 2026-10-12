@@ -35,7 +35,7 @@ const check = (n, ok, x = '') => {
   await wait(12000);
   check(
     'a copy run from the source code does not ask for updates',
-    out.includes('updates: off (run from the source code)') &&
+    out.includes('updates: off (Run from its source code') &&
       !out.includes('updates: asking'),
   );
   check('Firn still opens normally', out.includes('started'));

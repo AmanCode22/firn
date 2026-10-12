@@ -22,6 +22,7 @@
 import { app, autoUpdater } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
+import type { UpdateState } from './types';
 
 const REPOSITORY = 'dwurgy/firn';
 // Wait a little after Firn opens (the installer finishes its own work in
@@ -37,30 +38,72 @@ export const updateFeedUrl = (
 ) =>
   `https://update.electronjs.org/${REPOSITORY}/${platform}-${arch}/${version}`;
 
-// Why this copy can't update itself, or null if it can. On Windows, only a
-// copy installed by "Firn Setup.exe" (it has the installer's Update.exe in
-// the folder above it, not one unzipped by hand); on a Mac, only one in
-// the Applications folder (macOS won't let an app opened straight from
-// Downloads replace itself); never a copy run from the source code.
+// Why this copy can't update itself, in plain words for Settings, or null
+// if it can. On Windows, only a copy installed by "Firn Setup.exe" (it has
+// the installer's Update.exe in the folder above it, not one unzipped by
+// hand); on a Mac, only one in the Applications folder (macOS won't let an
+// app opened straight from Downloads replace itself); never a copy run
+// from the source code.
 const whyNoUpdates = (): string | null => {
-  if (!app.isPackaged) return 'run from the source code';
+  if (!app.isPackaged)
+    return 'Run from its source code, so it doesn’t update itself.';
   if (process.platform === 'win32')
     return fs.existsSync(
       path.join(path.dirname(process.execPath), '..', 'Update.exe'),
     )
       ? null
-      : 'not installed by Firn Setup.exe';
+      : 'Not installed with Firn Setup, so it can’t update itself.';
   if (process.platform === 'darwin')
     return app.isInApplicationsFolder()
       ? null
-      : 'not in the Applications folder';
-  return 'updated by the system';
+      : 'Move Firn to your Applications folder to keep it up to date.';
+  return 'Updated by your system’s software updates.';
+};
+
+// Where updates are, for Settings (which also offers "Check for updates"
+// and, once a new version is ready, "Restart now").
+let state: UpdateState = { status: 'idle' };
+const listeners = new Set<(state: UpdateState) => void>();
+const setState = (next: UpdateState) => {
+  state = next;
+  for (const listener of listeners) listener(state);
+};
+export const updateState = () => state;
+export const onUpdateState = (listener: (state: UpdateState) => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+
+let checkNow = () => {};
+let restartNow = () => {};
+// "Check for updates" (not while a check or a download is under way, or
+// once a new version is ready).
+export const checkForUpdates = () => {
+  if (['checking', 'downloading', 'ready', 'off'].includes(state.status))
+    return;
+  checkNow();
+};
+// "Restart now": Firn closes (saving everything, as always) and opens
+// again as the new version.
+export const installUpdate = () => {
+  if (state.status === 'ready') restartNow();
 };
 
 export const startUpdates = (log: (message: string) => void) => {
+  // (The checks pretend: a new version arrives a moment after asking.)
+  if (process.env.FIRN_UPDATES_TEST === '1') {
+    checkNow = () => {
+      setState({ status: 'checking' });
+      setTimeout(() => setState({ status: 'downloading' }), 400);
+      setTimeout(() => setState({ status: 'ready' }), 800);
+    };
+    restartNow = () => log('updates: (pretend) restarting');
+    return;
+  }
   const why = whyNoUpdates();
   if (why) {
     log(`updates: off (${why})`);
+    setState({ status: 'off', reason: why });
     return;
   }
   const feed = updateFeedUrl(app.getVersion(), process.platform, process.arch);
@@ -73,18 +116,31 @@ export const startUpdates = (log: (message: string) => void) => {
       autoUpdater.checkForUpdates();
     } catch (error) {
       log(`updates: couldn't check (${String(error)})`);
+      setState({ status: 'error' });
     }
   };
-  // No internet, or GitHub having a bad moment, isn't worth bothering
-  // anyone about: Firn simply tries again at the next check.
-  autoUpdater.on('error', (error) =>
-    log(`updates: couldn't check (${error.message})`),
-  );
-  autoUpdater.on('update-not-available', () => log('updates: up to date'));
-  autoUpdater.on('update-available', () => log('updates: downloading'));
+  checkNow = check;
+  restartNow = () => autoUpdater.quitAndInstall();
+  // No internet, or GitHub having a bad moment, isn't worth interrupting
+  // anyone about: Settings says so quietly, and Firn tries again at the
+  // next check.
+  autoUpdater.on('error', (error) => {
+    log(`updates: couldn't check (${error.message})`);
+    if (state.status !== 'ready') setState({ status: 'error' });
+  });
+  autoUpdater.on('checking-for-update', () => setState({ status: 'checking' }));
+  autoUpdater.on('update-not-available', () => {
+    log('updates: up to date');
+    setState({ status: 'up-to-date', checkedAt: Date.now() });
+  });
+  autoUpdater.on('update-available', () => {
+    log('updates: downloading');
+    setState({ status: 'downloading' });
+  });
   autoUpdater.on('update-downloaded', (_event, _notes, name) => {
     // It's ready for the next time Firn opens; no need to keep asking.
     log(`updates: ${name || 'new version'} ready for the next start`);
+    setState({ status: 'ready' });
     if (timer) clearInterval(timer);
   });
 

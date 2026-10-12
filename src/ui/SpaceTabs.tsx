@@ -1,4 +1,5 @@
 import {
+  memo,
   useLayoutEffect,
   useRef,
   useState,
@@ -15,7 +16,13 @@ import {
 import { useFollowPointer } from './followPointer';
 import { carry, CARRY_AFTER, dragOverPage } from './splitDrag';
 import { layerShown } from './quietWhenHidden';
-import { TabIcon, TabSound, tabTitle } from './TabList';
+import {
+  sameRowProps,
+  TabIcon,
+  TabSound,
+  tabTitle,
+  useSteady,
+} from './TabList';
 
 // A space's tabs as one list: its pinned tabs, the divider (with "Clear"),
 // "New tab", then its everyday tabs.
@@ -302,6 +309,10 @@ export function SpaceTabs({
     return y ? { transform: `translateY(${y}px)` } : undefined;
   };
 
+  // (One steady handler for every row, so rows that didn't change skip
+  // redrawing.)
+  const rowDown = useSteady(onPointerDown);
+
   const row = (tab: TabView, kind: 'pinned' | 'everyday', listed = true) => (
     <TabRow
       key={tab.id}
@@ -313,7 +324,7 @@ export function SpaceTabs({
       returning={returning === tab.id}
       listed={listed}
       style={listed ? nudge(tab.id) : undefined}
-      onPointerDown={(e) => onPointerDown(e, tab.id)}
+      onPointerDown={rowDown}
     />
   );
 
@@ -369,9 +380,7 @@ export function SpaceTabs({
             dragged={drag?.active === true && drag.id === tabsInRow[0].id}
             returning={returning === tabsInRow[0].id}
             style={nudge(tabsInRow[0].id)}
-            onPointerDown={(e, tabId) =>
-              onPointerDown(e, tabsInRow[0].id, tabId)
-            }
+            onPointerDown={rowDown}
           />
         ) : (
           row(tabsInRow[0], 'everyday')
@@ -381,7 +390,7 @@ export function SpaceTabs({
   );
 }
 
-function TabRow({
+const TabRow = memo(function TabRow({
   tab,
   kind,
   active,
@@ -403,7 +412,7 @@ function TabRow({
   // gliding).
   listed: boolean;
   style?: React.CSSProperties;
-  onPointerDown: (e: ReactPointerEvent) => void;
+  onPointerDown: (e: ReactPointerEvent, rowId: string) => void;
 }) {
   const pinned = kind === 'pinned';
   return (
@@ -423,7 +432,7 @@ function TabRow({
       data-testid="tab"
       style={style}
       title={tabTitle(tab)}
-      {...handlers}
+      onPointerDown={(e) => handlers.onPointerDown(e, tab.id)}
       // Middle-click closes (or unloads a pinned tab), like other browsers.
       onAuxClick={(e) => {
         if (e.button === 1) window.firn.closeTab(tab.id);
@@ -450,26 +459,26 @@ function TabRow({
       )}
     </div>
   );
-}
+}, sameRowProps);
 
 // A split view in the sidebar: one row with both tabs, side by side. Click
 // either half to work in that side; drag the row to move both. The button
 // on hover separates them again.
-function SplitRow({
+const SplitRow = memo(function SplitRow({
   tabs,
   activeTabId,
   dragged,
   returning,
   style,
   onPointerDown,
-  ...handlers
 }: {
   tabs: TabView[];
   activeTabId: string | null;
   dragged: boolean;
   returning: boolean;
   style?: React.CSSProperties;
-  onPointerDown: (e: ReactPointerEvent, tabId: string) => void;
+  // (The row's id is its first tab's; `tabId` is the half pressed.)
+  onPointerDown: (e: ReactPointerEvent, rowId: string, tabId: string) => void;
 }) {
   const active = tabs.some((t) => t.id === activeTabId);
   return (
@@ -486,7 +495,6 @@ function SplitRow({
       data-item={tabs[0].id}
       data-kind="everyday"
       style={style}
-      {...handlers}
     >
       {tabs.map((tab, i) => (
         <span
@@ -494,7 +502,7 @@ function SplitRow({
           className={`split-half ${tab.id === activeTabId ? 'is-current' : ''}`}
           data-testid="tab"
           title={tabTitle(tab)}
-          onPointerDown={(e) => onPointerDown(e, tab.id)}
+          onPointerDown={(e) => onPointerDown(e, tabs[0].id, tab.id)}
           // Middle-click closes that side; the other carries on alone.
           onAuxClick={(e) => {
             if (e.button === 1) window.firn.closeTab(tab.id);
@@ -522,7 +530,7 @@ function SplitRow({
       </button>
     </div>
   );
-}
+}, sameRowProps);
 
 // The list's draggable and gliding items, top to bottom.
 function itemElements(list: HTMLElement) {
