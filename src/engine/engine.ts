@@ -84,6 +84,9 @@ export interface Page {
   // again.
   pauseMedia(): Promise<number>;
   playMedia(): Promise<void>;
+  // Whether a person has typed into the page and the text is still there
+  // (false if the page doesn't answer quickly).
+  hasTypedText(): Promise<boolean>;
 
   load(url: string): void;
   // Brings back saved back/forward history (with scroll positions); fails

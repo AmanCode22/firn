@@ -147,6 +147,12 @@ const TIDY_FIRST_MS = 8000;
 const TIDY_EVERY_MS = 60 * 60 * 1000;
 // Archived tabs are forgotten after this many days of use (still in History).
 const ARCHIVE_KEEP_DAYS = 30;
+// Sleeping tabs (Tabs.sleepOld): a tab not on screen for an hour is put to
+// sleep, looked for every few minutes. FIRN_SLEEP_TEST=1 shortens both
+// for the end-to-end check (3 seconds, looked for every second).
+const SLEEP_TEST = process.env.FIRN_SLEEP_TEST === '1';
+const SLEEP_AFTER_MS = SLEEP_TEST ? 3000 : 60 * 60 * 1000;
+const SLEEP_CHECK_MS = SLEEP_TEST ? 1000 : 5 * 60 * 1000;
 // The peeking sidebar is forgiving to the left and quick to the right:
 // anywhere to its left (even off the window, onto another screen) counts as
 // "on it", but once the mouse is this far past its right edge, back over the
@@ -3657,6 +3663,16 @@ const createWindow = () => {
     clearTimeout(tidyTimer);
     clearInterval(tidyEvery);
   });
+  // Tabs not on screen for an hour go to sleep, to free their memory.
+  const sleepEvery = setInterval(() => {
+    if (win.isDestroyed()) return;
+    void tabs
+      .sleepOld((lastSeen) => Date.now() - lastSeen >= SLEEP_AFTER_MS)
+      .then((slept) => {
+        if (slept) debug(`put ${slept} tab(s) to sleep`);
+      });
+  }, SLEEP_CHECK_MS);
+  win.on('closed', () => clearInterval(sleepEvery));
   // Settings shows where updates are (checking, up to date, ready...).
   const stopUpdateState = onUpdateState(() =>
     send('settings:state', settingsState()),

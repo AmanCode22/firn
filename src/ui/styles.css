@@ -606,9 +606,13 @@ button {
   overflow: hidden;
 }
 
-/* An unloaded pinned tab (not opened yet, or unloaded) rests quieter. */
+/* A tab whose page isn't loaded rests quieter: asleep (src/tabs.ts,
+   sleepOld), not opened yet since Firn started, or an unloaded pin. It
+   loads again when clicked. */
 .tab.is-unloaded .tab-icon,
-.tab.is-unloaded .tab-title {
+.tab.is-unloaded .tab-title,
+.split-half.is-unloaded .tab-icon,
+.split-half.is-unloaded .tab-title {
   opacity: 0.6;
 }
 

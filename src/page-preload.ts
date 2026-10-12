@@ -8,6 +8,11 @@
 //   this site and fills it in.
 // Firn checks the page's real address itself; nothing here is trusted
 // about which site it is.
+//
+// One more thing, for sleeping tabs (Tabs.sleepOld in src/tabs.ts): when
+// Firn asks, it says whether a person has typed into the page and the text
+// is still there (a half-written message), so that tab stays awake. Only
+// yes or no; never what was typed.
 import { ipcRenderer } from 'electron';
 
 type Field = HTMLInputElement;
@@ -195,4 +200,36 @@ document.addEventListener(
     fill(password, login.password);
   },
   true,
+);
+
+// Sleeping tabs: the text fields (and editable areas) a person typed into.
+const typedInto = new Set<HTMLElement>();
+document.addEventListener(
+  'input',
+  (e) => {
+    if (!e.isTrusted) return;
+    const el = e.target;
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)
+      typedInto.add(el);
+    else if (el instanceof HTMLElement && el.isContentEditable)
+      typedInto.add(el);
+  },
+  true,
+);
+// Still there and not empty (a chat box cleared after sending doesn't
+// count, nor a field the page took away).
+const hasTypedText = () => {
+  for (const el of typedInto) {
+    if (!el.isConnected) typedInto.delete(el);
+    else if (
+      el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement
+        ? el.value.trim()
+        : el.textContent?.trim()
+    )
+      return true;
+  }
+  return false;
+};
+ipcRenderer.on('firn-page:typed?', () =>
+  ipcRenderer.send('firn-page:typed', hasTypedText()),
 );

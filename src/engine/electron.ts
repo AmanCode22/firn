@@ -464,6 +464,28 @@ class ElectronPage implements Page {
     );
   }
 
+  // Asks Firn's helper in the page (src/page-preload.ts), which only
+  // answers yes or no.
+  hasTypedText() {
+    const web = this.web;
+    if (web.isDestroyed()) return Promise.resolve(false);
+    return new Promise<boolean>((resolve) => {
+      const done = (typed: boolean) => {
+        clearTimeout(timer);
+        ipcMain.removeListener('firn-page:typed', onAnswer);
+        resolve(typed);
+      };
+      const onAnswer = (event: IpcMainEvent, typed: unknown) => {
+        if (event.sender === web && event.senderFrame === web.mainFrame)
+          done(typed === true);
+      };
+      // (A page without the helper, e.g. a PDF, never answers.)
+      const timer = setTimeout(() => done(false), 1000);
+      ipcMain.on('firn-page:typed', onAnswer);
+      web.send('firn-page:typed?');
+    });
+  }
+
   load(url: string) {
     this.web.loadURL(url);
   }
