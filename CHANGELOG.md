@@ -1,5 +1,20 @@
 # What's new in Firn
 
+## Firn 0.7.4
+
+**Tabs you're not using now rest, so Firn stays light.**
+
+A tab you haven't looked at for an hour now goes to sleep, giving back the memory its page was using. It keeps its place in the sidebar, and wakes up right where you left it when you click it.
+
+### Better
+
+- **Sleeping tabs.** After an hour out of sight, a tab rests a little quieter in the sidebar and stops using memory. Click it and it loads again, on the same page, with Back still working. A tab playing sound, one you've muted or paused, and one where you've started typing something stay awake.
+
+### Fixed
+
+- **A blank page after minimizing**, on Windows, should now be gone for good. Firn now gently nudges the page when you bring it back from the taskbar, which is what it needed to show up again.
+- **A tab paused from the mini player** is no longer tidied away into the Archive.
+
 ## Firn 0.7.3
 
 **Check for updates yourself, and a signed Firn for Windows.**
