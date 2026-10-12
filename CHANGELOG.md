@@ -12,7 +12,7 @@ A tab you haven't looked at for an hour now goes to sleep, giving back the memor
 
 ### Fixed
 
-- **A blank page after minimizing**, on Windows, should now be gone for good. Firn now gently nudges the page when you bring it back from the taskbar, which is what it needed to show up again.
+- **A page staying blank after minimizing**, on Windows. Firn now gently nudges the page when you bring it back from the taskbar, which is what it needed to show up again.
 - **A tab paused from the mini player** is no longer tidied away into the Archive.
 
 ## Firn 0.7.3
