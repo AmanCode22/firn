@@ -19,6 +19,14 @@
 # text), APPLE_API_KEY_ID, APPLE_API_ISSUER, and APPLE_TEAM_ID. Without
 # them, a push still builds a Mac app with a basic ("ad-hoc") signature,
 # but a release refuses to build.
+#
+# The Windows build signs Firn with David's certificate from Azure Artifact
+# Signing (account "firn-signing" in West US 2, certificate profile
+# "firn-browser"). It signs in to Azure with no stored password: GitHub
+# vouches for this job, run in the "windows-signing" environment, which
+# Azure trusts. The repository secrets AZURE_CLIENT_ID, AZURE_TENANT_ID,
+# and AZURE_SUBSCRIPTION_ID say which Azure app and account. Without them,
+# a push builds an unsigned Firn; a release refuses to build.
 
 name: Build
 
@@ -67,6 +75,11 @@ jobs:
             os: macos-26
             make: npm run make -- --arch=universal
     runs-on: ${{ matrix.os }}
+    # Azure trusts this environment's runs for Windows signing.
+    environment: windows-signing
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -122,6 +135,69 @@ jobs:
           echo "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
           echo "FIRN_MAC_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
           echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+      - name: Check for the Windows signing secrets
+        id: windows-signing
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        run: |
+          if [ -z "$AZURE_CLIENT_ID" ]; then
+            if [ "$GITHUB_EVENT_NAME" = release ]; then
+              echo "::error::A release must be signed, but the Windows signing secrets are missing."
+              exit 1
+            fi
+            echo "::warning::No Windows signing secrets: this Firn isn't signed."
+            exit 0
+          fi
+          echo "sign=yes" >> "$GITHUB_OUTPUT"
+      - name: Sign in to Azure
+        if: steps.windows-signing.outputs.sign == 'yes'
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Set up Windows signing
+        if: steps.windows-signing.outputs.sign == 'yes'
+        shell: pwsh
+        run: |
+          # Microsoft's signing add-on for signtool (the "dlib").
+          $dir = Join-Path $env:RUNNER_TEMP 'artifact-signing'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $zip = Join-Path $dir 'client.zip'
+          Invoke-WebRequest -Uri 'https://www.nuget.org/api/v2/package/Microsoft.ArtifactSigning.Client/1.0.128' -OutFile $zip
+          Expand-Archive $zip -DestinationPath (Join-Path $dir 'client') -Force
+          $dlib = Get-ChildItem $dir -Recurse -Filter 'Azure.CodeSigning.Dlib.dll' |
+            Where-Object { $_.Directory.Name -eq 'x64' } | Select-Object -First 1
+          if (-not $dlib) { throw 'No Azure.CodeSigning.Dlib.dll (x64) in the signing package.' }
+          # The newest signtool from the Windows SDK.
+          $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe' |
+            Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1
+          if (-not $signtool) { throw 'No signtool.exe from the Windows SDK.' }
+          "signtool: $($signtool.FullName)"
+          # Which account and certificate to sign with; signs in through the
+          # Azure sign-in above (the other ways are skipped).
+          $metadata = Join-Path $dir 'metadata.json'
+          @{
+            Endpoint = 'https://wus2.codesigning.azure.net'
+            CodeSigningAccountName = 'firn-signing'
+            CertificateProfileName = 'firn-browser'
+            ExcludeCredentials = @(
+              'EnvironmentCredential',
+              'ManagedIdentityCredential',
+              'WorkloadIdentityCredential',
+              'SharedTokenCacheCredential',
+              'VisualStudioCredential',
+              'VisualStudioCodeCredential',
+              'AzurePowerShellCredential',
+              'AzureDeveloperCliCredential',
+              'InteractiveBrowserCredential'
+            )
+          } | ConvertTo-Json | Set-Content -Encoding utf8 $metadata
+          "FIRN_WINDOWS_SIGN_DLIB=$($dlib.FullName)" >> $env:GITHUB_ENV
+          "FIRN_WINDOWS_SIGN_METADATA=$metadata" >> $env:GITHUB_ENV
+          "FIRN_WINDOWS_SIGNTOOL=$($signtool.FullName)" >> $env:GITHUB_ENV
       - name: Build
         run: ${{ matrix.make }}
         env:
@@ -141,6 +217,18 @@ jobs:
           xcrun stapler validate "$app"
           # Gatekeeper's own verdict, as a Mac that downloaded Firn sees it.
           spctl --assess --type execute --verbose=4 "$app"
+      - name: Check Firn and its installer are signed
+        if: steps.windows-signing.outputs.sign == 'yes'
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem out -Recurse -File -Include 'Firn.exe', 'Firn Setup.exe')
+          if ($files.Count -lt 2) { throw 'Firn.exe or Firn Setup.exe is missing.' }
+          foreach ($file in $files) {
+            & $env:FIRN_WINDOWS_SIGNTOOL verify /pa $file.FullName
+            if ($LASTEXITCODE -ne 0) { throw "$($file.Name) isn't signed." }
+            $signature = Get-AuthenticodeSignature $file.FullName
+            "$($file.Name): $($signature.Status), $($signature.SignerCertificate.Subject)"
+          }
       - name: Check the Mac app has its Liquid Glass icon
         if: runner.os == 'macOS'
         run: |
