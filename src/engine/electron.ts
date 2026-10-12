@@ -464,6 +464,28 @@ class ElectronPage implements Page {
     );
   }
 
+  // Asks Firn's helper in the page (src/page-preload.ts), which only
+  // answers yes or no.
+  hasTypedText() {
+    const web = this.web;
+    if (web.isDestroyed()) return Promise.resolve(false);
+    return new Promise<boolean>((resolve) => {
+      const done = (typed: boolean) => {
+        clearTimeout(timer);
+        ipcMain.removeListener('firn-page:typed', onAnswer);
+        resolve(typed);
+      };
+      const onAnswer = (event: IpcMainEvent, typed: unknown) => {
+        if (event.sender === web && event.senderFrame === web.mainFrame)
+          done(typed === true);
+      };
+      // (A page without the helper, e.g. a PDF, never answers.)
+      const timer = setTimeout(() => done(false), 1000);
+      ipcMain.on('firn-page:typed', onAnswer);
+      web.send('firn-page:typed?');
+    });
+  }
+
   load(url: string) {
     this.web.loadURL(url);
   }
@@ -502,8 +524,25 @@ class ElectronPage implements Page {
     else this.web.reload();
   }
 
+  // Asking the page to draw again isn't always enough on Windows: after
+  // the window comes back from the taskbar, a page can stay missing
+  // altogether (not even its white background) until its size changes.
+  // So it's made a pixel shorter for a moment, then put back (unless
+  // something else moved it meanwhile).
   repaint() {
-    if (!this.web.isDestroyed()) this.web.invalidate();
+    if (this.web.isDestroyed()) return;
+    this.web.invalidate();
+    const bounds = this.view.getBounds();
+    if (!this.view.getVisible() || bounds.width < 2 || bounds.height < 2)
+      return;
+    const nudged = { ...bounds, height: bounds.height - 1 };
+    this.view.setBounds(nudged);
+    setTimeout(() => {
+      if (this.web.isDestroyed()) return;
+      const now = this.view.getBounds();
+      if (now.height === nudged.height && now.width === nudged.width)
+        this.view.setBounds(bounds);
+    }, 50);
   }
 
   stop() {

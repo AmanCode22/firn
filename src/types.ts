@@ -219,8 +219,8 @@ export interface TabView {
   lastActiveAt: number;
   pinned: boolean;
   basecamp: boolean;
-  // False for a tab whose page hasn't loaded yet (restored, or an unloaded
-  // pinned tab).
+  // False for a tab whose page isn't loaded (restored and not shown yet,
+  // asleep, or an unloaded pinned tab).
   loaded: boolean;
   // Set when the tab is one side of a split view.
   splitId?: string;

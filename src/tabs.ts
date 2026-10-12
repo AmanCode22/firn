@@ -47,6 +47,8 @@ interface Entry {
   audibleSince?: number;
   wasAudible?: boolean;
   paused?: 'media' | 'muted';
+  // When the tab was last on screen (for sleeping tabs).
+  seenAt?: number;
 }
 
 // How much back/forward history is kept per tab in the saved session.
@@ -463,6 +465,7 @@ export class TabManager {
         !kept.has(id) &&
         !entry.tab.splitGroupId &&
         !entry.page.audible &&
+        !entry.paused &&
         isOld(entry.tab.lastActiveAt)
       );
     });
@@ -486,6 +489,51 @@ export class TabManager {
     this.renumber();
     this.emitTabs();
     return old.length;
+  }
+
+  // Puts tabs that haven't been on screen for a while to sleep, freeing
+  // the memory their pages use: each keeps its place, name, icon, and
+  // back/forward history, and loads again when it's next shown (load).
+  // Never a Basecamp tile (the few sites a person lives in, ready all day
+  // once opened), a tab on screen, one playing sound or muted, one paused
+  // from the mini player, or one with text a person typed still in it.
+  // How many.
+  async sleepOld(isOld: (lastSeen: number) => boolean) {
+    const now = Date.now();
+    for (const id of this.onScreen) {
+      const entry = this.entries.get(id);
+      if (entry) entry.seenAt = now;
+    }
+    const canSleep = (id: string, entry: Entry) =>
+      this.entries.get(id) === entry &&
+      entry.loaded &&
+      !entry.tab.basecamp &&
+      id !== this.activeId &&
+      !this.onScreen.includes(id) &&
+      !entry.page.audible &&
+      !entry.page.muted &&
+      !entry.paused &&
+      isOld(Math.max(entry.tab.lastActiveAt, entry.seenAt ?? 0));
+    const sleepy = [...this.entries].filter(([id, entry]) =>
+      canSleep(id, entry),
+    );
+    const typed = await Promise.all(
+      sleepy.map(([, entry]) => entry.page.hasTypedText()),
+    );
+    let slept = 0;
+    sleepy.forEach(([id, entry], i) => {
+      // (Shown, or changed, while the pages answered.)
+      if (typed[i] || !canSleep(id, entry)) return;
+      entry.savedHistory = entry.page.history(MAX_SAVED_HISTORY);
+      entry.page.destroy();
+      entry.page = this.makePage(id);
+      entry.loaded = false;
+      entry.wasAudible = false;
+      entry.audibleSince = undefined;
+      slept++;
+    });
+    if (slept) this.emitTabs();
+    return slept;
   }
 
   // Takes a tab out of the Archive (to bring it back, or to forget it).
@@ -762,8 +810,14 @@ export class TabManager {
     entry.tab.lastActiveAt = Date.now();
     // Both sides of a split view are on screen together.
     const next = this.splitOf(id)?.tabIds ?? [id];
-    for (const other of this.onScreen)
-      if (!next.includes(other)) this.entries.get(other)?.page.hide();
+    const now = Date.now();
+    for (const other of this.onScreen) {
+      if (next.includes(other)) continue;
+      const left = this.entries.get(other);
+      if (!left) continue;
+      left.page.hide();
+      left.seenAt = now;
+    }
     this.onScreen = next;
     for (const shownId of next) {
       const shown = this.entries.get(shownId)!;

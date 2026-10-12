@@ -420,7 +420,7 @@ const TabRow = memo(function TabRow({
       className={[
         'tab',
         active && 'is-active',
-        pinned && !tab.loaded && 'is-unloaded',
+        !tab.loaded && 'is-unloaded',
         dragged && !carriedAway && 'is-dragged',
         carriedAway && 'is-carried-away',
         returning && 'is-returning',
@@ -499,7 +499,7 @@ const SplitRow = memo(function SplitRow({
       {tabs.map((tab, i) => (
         <span
           key={tab.id}
-          className={`split-half ${tab.id === activeTabId ? 'is-current' : ''}`}
+          className={`split-half ${tab.id === activeTabId ? 'is-current' : ''} ${tab.loaded ? '' : 'is-unloaded'}`}
           data-testid="tab"
           title={tabTitle(tab)}
           onPointerDown={(e) => onPointerDown(e, tabs[0].id, tab.id)}

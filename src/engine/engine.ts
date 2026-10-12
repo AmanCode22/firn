@@ -84,6 +84,9 @@ export interface Page {
   // again.
   pauseMedia(): Promise<number>;
   playMedia(): Promise<void>;
+  // Whether a person has typed into the page and the text is still there
+  // (false if the page doesn't answer quickly).
+  hasTypedText(): Promise<boolean>;
 
   load(url: string): void;
   // Brings back saved back/forward history (with scroll positions); fails
@@ -97,7 +100,8 @@ export interface Page {
   forward(): void;
   reload(ignoreCache?: boolean): void;
   // Draws the page again (after the window comes back from being
-  // minimized, when a page can otherwise stay blank).
+  // minimized, when a page can otherwise stay blank), nudging its size if
+  // the engine needs that.
   repaint(): void;
   stop(): void;
   focus(): void;
