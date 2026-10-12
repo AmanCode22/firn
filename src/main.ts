@@ -63,7 +63,6 @@ import { ARCHIVE_CHOICES, isOld, noteDayUsed } from './archive';
 import { handleInstallerEvent } from './installer';
 import type {
   CarryTab,
-  DownloadFlight,
   CommandAction,
   FrameState,
   NavCommand,
@@ -210,14 +209,6 @@ const LIGHTS_GONE_X = -60;
 // Once the mouse leaves the bar, wait this long before sliding it away, so
 // brushing past the edge doesn't make it flicker.
 const TOP_BAR_LINGER_MS = 250;
-// A download's hand-off (flyDownload): about how long the flake glides, how much
-// room its box keeps around the path, how high the path rises before it
-// falls, and where it lands on the left edge while the sidebar is hidden
-// (about where the downloads sit when it's shown).
-const FLIGHT_MS = 640;
-const FLIGHT_ROOM = 24;
-const FLIGHT_RISE = 48;
-const DOWNLOAD_EDGE_FROM_BOTTOM = 96;
 // The mouse rests at the top edge this long before the bar comes down, so
 // flicking up to a site's own search box or menu doesn't bring it (and move
 // the page out from under the mouse).
@@ -658,13 +649,6 @@ const createWindow = () => {
   let carried: CarryTab | null = null;
   let carryHideTimer: ReturnType<typeof setTimeout> | undefined;
 
-  // A download's hand-off (flyDownload): a small Firn flake gliding from where it
-  // was clicked to the sidebar, drawn by the floating layer in a box just
-  // around its path, for half a second.
-  let flight: { x: number; y: number; width: number; height: number } | null =
-    null;
-  let flightTimer: ReturnType<typeof setTimeout> | undefined;
-
   // The handle at the top of one side of a split view: a small pill with a
   // grip (drag it over the other side to swap them) and a × (take that side
   // out of the split). It shows while the mouse is near the top middle of
@@ -709,8 +693,6 @@ const createWindow = () => {
 
   const boundsFor = (layer: WebContentsView) => {
     const [width, height] = win.getContentSize();
-    if (layer === floating && overlay.mode === 'hidden' && !carried && flight)
-      return flight;
     if (
       layer === floating &&
       overlay.mode === 'hidden' &&
@@ -1649,113 +1631,13 @@ const createWindow = () => {
     tidyOldTabs();
   };
 
-  // A download clicked on the page: a small Firn flake in the space's color
-  // glides from the click to its new row at the bottom of the sidebar (to
-  // the window's left edge while the sidebar is hidden), so the eye follows
-  // it there; the row gives a little nod as it lands ('downloads:landed').
-  // Only when the click was on the page, nothing else is using the floating
-  // layer, and Firn is in front.
-  const flyDownload = async () => {
-    const busy = () =>
-      win.isDestroyed() ||
-      overlay.mode !== 'hidden' ||
-      !!carried ||
-      !!flight ||
-      !readyUi.has(floating.webContents);
-    if (busy() || win.isMinimized() || !win.isFocused()) return;
-    const { x, y, width, height } = cursorInWindow();
-    const onPage =
-      x >= pageLeft &&
-      x <= width - PAGE_INSET &&
-      y >= pageTop &&
-      y <= height - PAGE_INSET;
-    if (!onPage) return;
-    let to = { x: 0, y: height - DOWNLOAD_EDGE_FROM_BOTTOM };
-    if (!windowState.sidebarCollapsed) {
-      // The new row's icon (newest first), once the sidebar has drawn it:
-      // where it will be once its slot has opened (the shelf grows upward,
-      // so the row ends up higher by what the slot still has to grow) and
-      // it has risen into place.
-      await new Promise((resolve) => setTimeout(resolve, 60));
-      if (win.isDestroyed()) return;
-      const at: unknown = await win.webContents
-        .executeJavaScript(
-          `(() => {
-            const slot = document.querySelector('.downloads .download-slot');
-            const row = slot && slot.querySelector('.download');
-            const icon = row && row.querySelector('.download-icon');
-            if (!icon) return null;
-            const box = icon.getBoundingClientRect();
-            const toGrow = row.offsetHeight - slot.getBoundingClientRect().height;
-            const rising = new DOMMatrix(getComputedStyle(row).transform).m42;
-            return {
-              x: box.x + box.width / 2,
-              y: box.y + box.height / 2 - Math.max(0, toGrow) - rising,
-            };
-          })()`,
-        )
-        .catch(() => null);
-      const point = at as { x?: unknown; y?: unknown } | null;
-      if (typeof point?.x === 'number' && typeof point.y === 'number')
-        to = { x: point.x, y: point.y };
-    }
-    if (busy()) return;
-    // A box around the path, with room for its gentle rise and the flake.
-    const left = Math.max(0, Math.round(Math.min(x, to.x) - FLIGHT_ROOM));
-    const top = Math.max(
-      0,
-      Math.round(Math.min(y, to.y) - FLIGHT_ROOM - FLIGHT_RISE),
-    );
-    const right = Math.min(width, Math.round(Math.max(x, to.x) + FLIGHT_ROOM));
-    const bottom = Math.min(
-      height,
-      Math.round(Math.max(y, to.y) + FLIGHT_ROOM),
-    );
-    flight = { x: left, y: top, width: right - left, height: bottom - top };
-    if (barTip) {
-      barTip = null;
-      floating.webContents.send('tip:state', { kind: 'hide' });
-    }
-    if (splitHandle) {
-      splitHandle = null;
-      floating.webContents.send('split-handle:state', { kind: 'hide' });
-    }
-    clearTimeout(carryHideTimer);
-    showLayer(floating);
-    floating.webContents.send('downloads:flight', {
-      fromX: x - left,
-      fromY: y - top,
-      toX: to.x - left,
-      toY: to.y - top,
-    } satisfies DownloadFlight);
-    // The floating layer says when the flake has landed (it may start a
-    // little late); just in case it doesn't, a while after it should have.
-    clearTimeout(flightTimer);
-    flightTimer = setTimeout(landFlight, FLIGHT_MS + 1000);
-  };
-  // The flake has landed: the row nods, and the layer goes (unless something
-  // else is using it now).
-  const landFlight = () => {
-    if (!flight) return;
-    clearTimeout(flightTimer);
-    flight = null;
-    if (win.isDestroyed()) return;
-    send('downloads:landed');
-    if (overlay.mode === 'hidden' && !carried && !barTip && !splitHandle)
-      hideLayer(floating);
-    else layoutLayers();
-  };
-
   // Downloads go straight to the Downloads folder; the sidebar shows them.
   const downloads = new Downloads(
     path.join(app.getPath('userData'), 'downloads.json'),
     downloadsFolder,
     (list) => send('downloads:state', list),
   );
-  engine.onDownload((item) => {
-    downloads.add(item);
-    void flyDownload();
-  });
+  engine.onDownload((item) => downloads.add(item));
   engine.setSavedLoginProvider((origin) => passwords.loginFor(origin));
   engine.setNavigationGuard(
     (url) => (visitAnyway.has(url) ? null : safeBrowsing.check(url)),
@@ -2925,9 +2807,6 @@ const createWindow = () => {
         peekAside = aside;
         sendSidebar();
       }
-    },
-    'downloads:flight-done': (sender) => {
-      if (sender === floating.webContents) landFlight();
     },
     'tabs:carry': (sender, carry) => {
       if (sender !== win.webContents && sender !== peek.webContents) return;
