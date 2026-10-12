@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Download } from '../types';
 import {
   CloseIcon,
@@ -12,6 +12,11 @@ import {
 // files stay in the Downloads folder).
 const RECENT_MS = 30 * 60 * 1000;
 const MAX_SHOWN = 3;
+// A download that started this recently, while this Firn was running,
+// arrives with a little ceremony (below); the ones already there when Firn
+// starts are simply there.
+const NEW_WITHIN_MS = 4000;
+const OPENED_AT = Date.now();
 
 // The downloads shelf at the bottom of the sidebar: files downloading now
 // and the last few finished ones. Click a finished one to open it.
@@ -21,6 +26,13 @@ export function DownloadsShelf({ downloads }: { downloads: Download[] }) {
     const timer = setInterval(() => setNow(Date.now()), 30 * 1000);
     return () => clearInterval(timer);
   }, []);
+  // Each time a download's dot lands here (src/main.ts, flyDownload), the
+  // newest row gives a little nod.
+  const [landed, setLanded] = useState(0);
+  useEffect(
+    () => window.firn.onDownloadLanded(() => setLanded((n) => n + 1)),
+    [],
+  );
   const shown = downloads
     .filter(
       (d) =>
@@ -30,74 +42,108 @@ export function DownloadsShelf({ downloads }: { downloads: Download[] }) {
   if (!shown.length) return null;
   return (
     <section className="downloads" aria-label="Downloads">
-      {shown.map((d) => (
-        <DownloadRow key={d.id} download={d} />
+      {shown.map((d, i) => (
+        <DownloadRow key={d.id} download={d} nod={i === 0 ? landed : 0} />
       ))}
     </section>
   );
 }
 
-function DownloadRow({ download: d }: { download: Download }) {
+// A download row. A new one arrives: its slot opens, the row rises into it
+// with a soft wash of the space's color that fades, and its ring nods when
+// the flake from the page lands (`nod` counts landings). When it finishes,
+// the arrow settles into a file and a soft ring spreads from it, like the
+// archive box's pulse. All of it short and eased; with reduced motion, only
+// fades (styles.css).
+function DownloadRow({
+  download: d,
+  nod,
+}: {
+  download: Download;
+  nod: number;
+}) {
   const canOpen = d.state === 'done' && !d.missing;
   const canRetry = d.state === 'failed' || d.state === 'cancelled';
   const share = d.total > 0 ? Math.min(1, d.received / d.total) : 0;
+  const [arriving] = useState(
+    () => d.startedAt >= OPENED_AT && Date.now() - d.startedAt < NEW_WITHIN_MS,
+  );
+  // Counts finishes seen here (a quick one may already be done on arrival).
+  const [finished, setFinished] = useState(() =>
+    arriving && d.state === 'done' ? 1 : 0,
+  );
+  const lastState = useRef(d.state);
+  useEffect(() => {
+    if (lastState.current === 'progress' && d.state === 'done')
+      setFinished((n) => n + 1);
+    lastState.current = d.state;
+  }, [d.state]);
   return (
-    <div
-      className={`download is-${d.state} ${canOpen || canRetry ? 'is-clickable' : ''}`}
-      title={
-        canOpen
-          ? `Open ${d.name}`
-          : canRetry
-            ? 'Try again'
-            : d.state === 'progress'
-              ? `Downloading ${d.name}`
-              : d.name
-      }
-      onClick={() => {
-        if (canOpen) window.firn.openDownload(d.id);
-        else if (canRetry) window.firn.retryDownload(d.id);
-      }}
-    >
-      <span className="download-icon">
-        {d.state === 'progress' ? (
-          <ProgressRing share={share} known={d.total > 0} />
-        ) : canRetry ? (
-          <RetryIcon />
-        ) : (
-          <FileIcon />
-        )}
-      </span>
-      <span className="download-text">
-        <span className="download-name">{d.name}</span>
-        <span className="download-detail">{detail(d)}</span>
-      </span>
-      <span className="download-actions">
-        {d.state !== 'progress' && (
-          <button
-            className="icon-button"
-            title="Show in folder"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.firn.showDownload(d.id);
-            }}
-          >
-            <FolderIcon />
-          </button>
-        )}
-        <button
-          className="icon-button"
+    <div className={`download-slot ${arriving ? 'is-arriving' : ''}`}>
+      <div className="download-slot-inner">
+        <div
+          className={`download is-${d.state} ${canOpen || canRetry ? 'is-clickable' : ''} ${arriving ? 'is-new' : ''}`}
           title={
-            d.state === 'progress' ? 'Cancel download' : 'Remove from list'
+            canOpen
+              ? `Open ${d.name}`
+              : canRetry
+                ? 'Try again'
+                : d.state === 'progress'
+                  ? `Downloading ${d.name}`
+                  : d.name
           }
-          onClick={(e) => {
-            e.stopPropagation();
-            if (d.state === 'progress') window.firn.cancelDownload(d.id);
-            else window.firn.removeDownload(d.id);
+          onClick={() => {
+            if (canOpen) window.firn.openDownload(d.id);
+            else if (canRetry) window.firn.retryDownload(d.id);
           }}
         >
-          <CloseIcon />
-        </button>
-      </span>
+          <span className="download-icon">
+            {d.state === 'progress' ? (
+              <span className={nod ? 'is-nodding' : ''} key={nod}>
+                <ProgressRing share={share} known={d.total > 0} />
+              </span>
+            ) : canRetry ? (
+              <RetryIcon />
+            ) : (
+              <span className={finished ? 'is-settling' : ''} key={finished}>
+                <FileIcon />
+              </span>
+            )}
+            {finished > 0 && <span className="download-pulse" key={finished} />}
+          </span>
+          <span className="download-text">
+            <span className="download-name">{d.name}</span>
+            <span className="download-detail">{detail(d)}</span>
+          </span>
+          <span className="download-actions">
+            {d.state !== 'progress' && (
+              <button
+                className="icon-button"
+                title="Show in folder"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.firn.showDownload(d.id);
+                }}
+              >
+                <FolderIcon />
+              </button>
+            )}
+            <button
+              className="icon-button"
+              title={
+                d.state === 'progress' ? 'Cancel download' : 'Remove from list'
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                if (d.state === 'progress') window.firn.cancelDownload(d.id);
+                else window.firn.removeDownload(d.id);
+              }}
+            >
+              <CloseIcon />
+            </button>
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

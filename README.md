@@ -1,7 +1,67 @@
-# firn
-A calm, minimal browser that's easy for everyone: vertical tabs, spaces, split view, and link previews, without the learning curve. No telemetry; your data stays on your device. Built on Chromium. firnbrowser.com
+# Firn
 
-## Running Firn on your computer
+A calm, minimal browser that's easy for everyone: vertical tabs, spaces, split view, and link previews, without the learning curve. No telemetry; your data stays on your device. Built on Chromium.
+
+[firnbrowser.com](https://firnbrowser.com)
+
+## Download
+
+- **Windows:** [Firn Setup.exe](https://github.com/dwurgy/firn/releases/latest/download/Firn.Setup.exe). Open it and Firn installs in a few seconds, just for you (no administrator rights needed), and adds itself to the Start menu. Firn is signed with its maker's name. While it's new, Windows may still say "Windows protected your PC" the first time: click **More info**, then **Run anyway**.
+- **Mac:** [Firn for Mac](https://github.com/dwurgy/firn/releases/latest/download/Firn.for.Mac.zip), one app for Apple chips and Intel. Unzip it, drag **Firn** into **Applications**, and open it. It's signed and checked by Apple, so macOS only asks once whether to open an app from the internet.
+- **Every version** and its notes: the [Releases page](https://github.com/dwurgy/firn/releases).
+- **Linux:** no download yet; Firn can be built from its source code (see "For developers" below).
+
+Firn keeps itself up to date: it checks for a new version a minute after it opens and every few hours, downloads it quietly, and is the new version the next time you open it, with a short **What's new** note. **Settings > Updates** shows where things stand, with a **Check for updates** button. Uninstalling keeps your tabs, history, and passwords, so reinstalling brings everything back.
+
+## What Firn does
+
+### Tabs in the sidebar
+
+Tabs live in a sidebar on the left, top to bottom. **Ctrl+S** (Cmd+S on a Mac) hides it to give the page the whole window; move the mouse to the left edge and it peeks back out.
+
+- **Basecamp** is the grid of your everyday sites at the top, the same in every space (up to 12). Right-click a tab and choose **Add to Basecamp**.
+- **Pinned tabs** belong to one space and sit under its name. Pin a tab with **Ctrl+D**, by right-clicking it, or by dragging it above the line.
+- Basecamp and pinned tabs remember their *home* address. Closing one doesn't remove it: it rests, a little quieter, until you click it again. Right-click for **Go back to home**.
+- **Tabs tidy themselves away.** Everyday tabs you haven't looked at for a while (7 days of using Firn, by default; Settings > Tabs) move into the **Archive**, the little box at the bottom right of the sidebar. Click it to bring any of them back. Closing a tab yourself still closes it.
+- **Tabs you're not using rest.** A tab you haven't looked at for an hour goes to sleep and gives back its memory. It keeps its place and loads again, on the same page, when you click it. Basecamp sites, tabs playing sound, and pages where you've started typing stay awake.
+
+### Spaces
+
+Spaces keep separate sets of tabs, like Work and Personal. Each has its own name, color, and icon; the color softly tints the window. Switch with the icons at the bottom of the sidebar or **Ctrl+Shift+1…9**, and right-click a space's icon to rename it or change its color or icon. Right-click a tab to move it to another space.
+
+### The command bar
+
+**Ctrl+T** opens the command bar: type an address or a search. It also finds your open tabs in every space and pages from your history, and runs actions by name (**pin**, **basecamp**, **reopen**, **new space**, a space's name, and more).
+
+### Split view and Lookout
+
+- **Split view:** drag a tab from the sidebar onto the page, and the two open side by side, each with its own address and back/forward. Drag the gap to resize. Rest the mouse near the top middle of a side for a small handle to swap the sides or take one out.
+- **Lookout:** **Shift+click** a link to preview it in a panel floating over the page. **Esc** closes it; a button opens it as a tab. Links from a Basecamp or pinned tab to another site open in Lookout by themselves, so your pinned tab stays put.
+
+### Sound
+
+A small speaker shows on any tab playing sound; click it to mute the tab. When something plays in a tab you're not looking at, a mini player at the bottom of the sidebar shows what it is, with a button to pause it and a click to go to it.
+
+### Downloads
+
+Files save to your Downloads folder and show at the bottom of the sidebar, with a ring that fills as they arrive. Click a finished one to open it, or hover to show it in its folder. PDFs open right in the tab.
+
+### Privacy
+
+- **No telemetry.** Firn doesn't track you or report how you use it. Your tabs, history, passwords, and settings stay on your computer.
+- **Ads and trackers are blocked** by default, with Ghostery's open-source blocker and the public EasyList, EasyPrivacy, and uBlock Origin lists. If a site breaks, right-click the page and choose **Allow ads on this site**.
+- **Scam and malware warnings** use Google Safe Browsing, checked on your computer: Firn downloads Google's lists, which hold only the first few bytes of a code made from each dangerous address. Only when one matches, which is rare, does Firn ask Google about those few bytes, never the address.
+- **Saved passwords** are encrypted with your computer's own protection, or not saved at all if it has none. They fill in only when you click into a sign-in form, only on the very same site, and only over a secure connection.
+- **Site permissions:** a site must ask before using your camera, microphone, location, notifications, or clipboard, and Firn remembers your answer. The button at the left of the address bar changes it.
+- **What Firn sends, and to whom:** the update check (to update.electronjs.org: only Firn's version and the kind of computer), the daily block lists (downloaded from Ghostery's public GitHub), and Safe Browsing's lists (from Google, as above). Nothing about you or what you browse.
+
+### Shortcuts
+
+**Settings > Keyboard** lists every shortcut. A few to start with: **Ctrl+T** for the command bar, **Ctrl+S** to hide the sidebar, **Ctrl+D** to pin, **Shift+click** for Lookout, and **Ctrl+Shift+1…9** for spaces. On a Mac, use Cmd instead of Ctrl.
+
+## For developers
+
+### Running Firn from its source code
 
 You need [Node.js](https://nodejs.org) (the LTS version) and Git installed once.
 
@@ -12,228 +72,52 @@ npm install      # first time only, and whenever package.json changes
 npm start        # opens Firn
 ```
 
-**Windows: if PowerShell says "running scripts is disabled on this system"**, run this once and answer `Y`:
+**Windows: if PowerShell says "running scripts is disabled on this system"**, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once and answer `Y` (or use `npm.cmd install` / `npm.cmd start`).
 
-```
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
+`npm start` runs Firn in development mode: a change in `src/ui/` updates the window by itself; for `src/main.ts` or `src/preload.ts`, type `rs` in the terminal and press Enter. Development mode is slower than the real thing. For a fast copy, run `npm run package` and open `out\Firn-win32-x64\Firn.exe` (on macOS, `out/Firn-darwin-*/Firn.app`); it keeps the same tabs and history, but only one Firn can run at a time.
 
-(Or use `npm.cmd install` / `npm.cmd start` instead.)
+`npm run make` builds the installer (`out\make\squirrel.windows\x64\Firn Setup.exe` on Windows).
 
-`npm start` runs Firn in development mode: if you change a file in `src/ui/`, the window updates by itself. For changes to `src/main.ts` or `src/preload.ts`, type `rs` in the terminal and press Enter to restart.
+Before committing: `npm run lint`, `npm run typecheck`, and the end-to-end checks, `bash tests/e2e/run.sh` (see `tests/e2e/README.md`).
 
-### The fast version, for everyday browsing
+### Builds and releases on GitHub
 
-Development mode is slower than the real thing: Firn's own panels are served piece by piece, and React runs its extra-checking version. For everyday use, build the packaged app:
+GitHub builds Firn on its own Windows and Mac computers every time changes are pushed (`.github/workflows/build.yml`).
 
-```
-npm run package
-```
+- **To try a change:** open the **Actions** tab, click the latest **Build** run, and download "Firn for Windows" or "Firn for macOS" under **Artifacts** (signed in to GitHub; kept for 30 days).
+- **To publish a version:** raise `version` in `package.json` and add its notes at the top of `CHANGELOG.md` (`## Firn X.Y.Z`, a bold one-line headline, a sentence or two, then `### New` / `### Better` / `### Fixed` lists; Firn's What's new reads them). Then, on GitHub, **Releases > Draft a new release**: a tag named `v` plus the version (for example `v0.7.4`), the headline as the title, the rest of the section as the description, and **Publish release**. In about 15 minutes GitHub attaches the Windows installer and update files and the Mac zip, and installed copies update themselves from it.
+- **Signing:** the Mac build signs with Firn's Apple Developer ID and has Apple notarize it, from six repository secrets: `MAC_CERTIFICATE_P12`, `MAC_CERTIFICATE_PASSWORD`, `APPLE_API_KEY_P8`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, and `APPLE_TEAM_ID`. The Windows build signs with Azure Artifact Signing, signing in as the `windows-signing` environment, from `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`. Without them, a push still builds (unsigned), but a release refuses to.
 
-Then open `out\Firn-win32-x64\Firn.exe` (on macOS, `out/Firn-darwin-*/Firn.app`). It starts several times faster and animates more smoothly. It keeps the same tabs, spaces, and history as `npm start`, but only one Firn can run at a time, so close the other first. After pulling new changes, run `npm run package` again.
+### The Safe Browsing key
 
-### Downloads built by GitHub (Windows and Mac)
+Google's Safe Browsing needs a free key, built into each copy of Firn. Without one, Firn works the same but doesn't warn about scam sites.
 
-GitHub builds Firn by itself, on its own Windows and Mac computers, every time changes are pushed (see `.github/workflows/build.yml`). Nothing to run on your computer:
+1. At [console.cloud.google.com](https://console.cloud.google.com), create a project, and in **APIs & Services → Library** enable the **Safe Browsing API**.
+2. In **APIs & Services → Credentials**, create an API key and restrict it to the Safe Browsing API.
+3. For your own builds, put the key in a file named `safe-browsing-key.txt` in the `firn` folder (it's never uploaded: `.gitignore` skips it). For GitHub's builds, add it as the repository secret `FIRN_SAFE_BROWSING_KEY`.
 
-- **To try a change:** open the repository's **Actions** tab, click the latest **Build** run, and scroll to **Artifacts**: "Firn for Windows" holds `Firn Setup.exe`, and "Firn for macOS" holds a `.zip` with `Firn.app` (one app for every Mac, Apple chip or Intel). You need to be signed in to GitHub to download them; they're kept for 30 days.
-- **To share a version:** on GitHub, open **Releases > Draft a new release**, create a tag named `v` plus the version in `package.json` (for example `v0.1.0`), use that version's headline from `CHANGELOG.md` as the title and paste the rest of its section as the description, and click **Publish release**. In about 15 minutes, GitHub attaches the Windows installer and the Mac zip to that release's page: the link to send to friends (anyone can download, no account needed). These links always fetch the newest version, for a website's download buttons: `https://github.com/dwurgy/firn/releases/latest/download/Firn.Setup.exe` (Windows) and `https://github.com/dwurgy/firn/releases/latest/download/Firn.for.Mac.zip` (Mac, from 0.1.1 on). To publish the next version, raise `version` in `package.json` and add its notes at the top of `CHANGELOG.md` first.
-- **Mac signing:** the Mac build reads six repository secrets: `MAC_CERTIFICATE_P12`, `MAC_CERTIFICATE_PASSWORD`, `APPLE_API_KEY_P8`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, and `APPLE_TEAM_ID` (see the top of `build.yml`). Without them, a push still builds a Mac app, but macOS won't vouch for it, and a release refuses to build.
-- **The Safe Browsing key:** add it once as a repository secret named `FIRN_SAFE_BROWSING_KEY` (**Settings > Secrets and variables > Actions > New repository secret**), so GitHub's builds warn about scam sites too.
-
-**Opening Firn on a Mac.** GitHub's Mac build signs Firn with Firn's Apple "Developer ID" and has Apple notarize it (check it for malware), so it opens like any app from the web: unzip the download, drag **Firn** into **Applications**, and open it. The first time, macOS asks once whether to open an app downloaded from the internet: click **Open**.
-
-### Making the installer (to share Firn)
-
-To give Firn to someone on Windows, build its installer:
-
-```
-npm run make
-```
-
-It takes a few minutes. The installer appears as `out\make\squirrel.windows\x64\Firn Setup.exe`: that one file is all you send. (Make sure `safe-browsing-key.txt` is in place first, so their copy warns about scam sites too.)
-
-What happens when they open it: no wizard and no questions. A small window shows the Firn mark for a few seconds while it installs, then Firn opens with its welcome. It's added to the Start menu and the desktop, and can be removed like any app in Windows' **Settings > Apps**. Firn installs just for that person (in `%LOCALAPPDATA%\firn`), so it doesn't need administrator rights. Uninstalling keeps their tabs, history, and passwords (in `%APPDATA%\Firn`), so reinstalling brings everything back.
-
-**Until Firn is code-signed**, Windows will say "Windows protected your PC" the first time: click **More info**, then **Run anyway**. Signing (a paid certificate) removes that; it's a later step.
-
-### Updates
-
-On Windows and Mac, an installed Firn keeps itself up to date (on Windows, installed with `Firn Setup.exe`; on a Mac, in the **Applications** folder). About a minute after it opens, and every 4 hours after that, it asks whether there's a newer version on Firn's GitHub **Releases** page. If there is, it downloads it quietly in the background, and the next time Firn is opened it's the new version, with a short **What's new** note in plain words (once; it's also in the Firn menu and the command bar). There's nothing to click.
-
-- **Publishing an update** is the same as sharing a version (see "Downloads built by GitHub" above): raise `version` in `package.json`, then publish a release tagged `v` plus that version. Drafts and pre-releases are skipped. The release needs all the files GitHub attaches (`RELEASES` and the `.nupkg`, not just `Firn Setup.exe`, and the Mac zip), so wait until they're there.
-- **From the first release on:** 0.1.0 already has this, so everyone who installs Firn gets later versions by themselves.
-- **The notes** are `CHANGELOG.md`'s, built into Firn (nothing is fetched to show them), so write each version's section there before publishing: `## Firn 0.1.1`, a bold one-line headline, a sentence or two, then optional `### New` / `### Better` / `### Fixed` lists.
-- **What it sends:** the question goes to update.electronjs.org, a free service the Electron project runs for open-source apps. It carries only Firn's version and the kind of computer (for example "win32-x64" or "darwin-arm64"), nothing about you or what you browse.
-- **On a Mac**, the update is the release's Mac zip (one app for every Mac). macOS only accepts it because it's signed with the same Apple Developer ID as the Firn already installed, so a tampered download can't sneak in.
-- **Linux** packages are updated by the system.
-
-### Shortcuts (so far)
-
-| Action | Windows / Linux | macOS |
-| --- | --- | --- |
-| Focus address bar | Ctrl+L | Cmd+L |
-| Hide / show sidebar | Ctrl+S | Cmd+S |
-| Command bar (new tab, find tabs and history, actions) | Ctrl+T | Cmd+T |
-| Close tab (a pinned or Basecamp tab is unloaded instead) | Ctrl+W (or middle-click a tab) | Cmd+W |
-| Pin / unpin tab | Ctrl+D | Cmd+D |
-| Preview a link in Lookout | Shift+click | Shift+click |
-| History | Ctrl+H | Cmd+Y |
-| Settings | Ctrl+, | Cmd+, |
-| Find in page (Enter / Shift+Enter: next / previous, Esc: close) | Ctrl+F (then F3 or Ctrl+G for next) | Cmd+F (then Cmd+G) |
-| Zoom in / out / back to 100% (each site remembers its zoom) | Ctrl+= / Ctrl+- / Ctrl+0, or Ctrl+mouse wheel | Cmd+= / Cmd+- / Cmd+0 |
-| Switch to space 1–9 | Ctrl+Shift+1…9 | Cmd+Shift+1…9 |
-| Reopen closed tab | Ctrl+Shift+T | Cmd+Shift+T |
-| Last-used tab (hold Ctrl and keep tapping Tab for the switcher) | Ctrl+Tab / Ctrl+Shift+Tab | Ctrl+Tab / Ctrl+Shift+Tab |
-| Jump to tab 1–8 / last tab | Ctrl+1…8 / Ctrl+9 | Cmd+1…8 / Cmd+9 |
-| Back / Forward | Alt+← / Alt+→ | Cmd+[ / Cmd+] |
-| Reload | F5 or Ctrl+R | Cmd+R |
-| Hard reload | Ctrl+Shift+R | Cmd+Shift+R |
-| Developer tools for the page | F12 or Ctrl+Shift+I | Cmd+Option+I |
-
-On a Mac, the menu bar has short, plain **Firn, File, Edit, View, Window, and Help** menus with the main ones (Firn > **Settings…** is Cmd+,). Shortcuts follow the Mac's habits: Cmd+H hides Firn and Cmd+Y opens History, like Safari and Chrome.
+Google's free key is for non-commercial use; if Firn is ever sold, it should move to Google's paid version (Web Risk).
 
 ### Where things live
 
-- `src/main.ts` — the main process: creates the window, handles shortcuts and messages from the UI.
-- `src/tabs.ts` — the tab manager: tabs, spaces, Basecamp, pins, and their order. It doesn't depend on Electron.
-- `src/engine/` — the browser engine: `engine.ts` describes what a web page can do, and `electron.ts` is Electron's version of it (the one place web pages are created).
-- `src/types.ts` — the data model (spaces, tabs, window) shared by every part of the app.
-- `src/preload.ts` — the narrow, safe bridge between Firn's UI and the main process.
-- `src/ui/` — Firn's own interface (React): the window frame (`App.tsx`), the sidebar and tabs (`Sidebar.tsx`, `TabList.tsx`, `Basecamp.tsx`, `Spaces.tsx`), the sidebar peeking over the page while collapsed (`Peek.tsx`), the command bar, tab switcher, and find bar that float over the page (`Floating.tsx`), and the bar with the window buttons (`TopBar.tsx`).
-- `tests/e2e/` — checks that start Firn and click through it (see `tests/e2e/README.md`).
-- `brand/` — Firn's logo, wordmark, and app icons (see `brand/README.md`); `assets/` holds the app icon Firn itself uses.
-- `src/url.ts` — decides whether what you typed is an address or a search.
-- `src/ui/Welcome.tsx` and `src/welcome.ts` — the welcome shown the first time Firn opens.
-- `src/safebrowsing.ts` — scam and malware warnings (Google Safe Browsing, checked on this computer).
-- `src/defaultBrowser.ts` — Firn as the default browser: listing Firn among the system's browsers, and opening links from other apps.
-- `src/adblock.ts` — blocking ads and trackers (Ghostery's open-source blocker, with the public block lists).
-- `src/passwords.ts` — saved passwords, encrypted on disk; `src/page-preload.ts` is the small helper inside web pages that spots sign-ins and fills saved ones.
+- `src/main.ts`: the main process: the window, its layers, shortcuts, and messages from the UI.
+- `src/tabs.ts`: tabs, spaces, Basecamp, pins, archiving, and sleeping tabs. It doesn't depend on Electron.
+- `src/engine/`: the browser engine: `engine.ts` describes what a web page can do, and `electron.ts` is Electron's version of it.
+- `src/types.ts`: the data model shared by every part of Firn.
+- `src/preload.ts`: the narrow bridge between Firn's interface and the main process.
+- `src/ui/`: Firn's own interface (React): the sidebar, the floating panels, the top bar, the welcome, and the styles.
+- `src/page-preload.ts`: the small, walled-off helper inside web pages (saved passwords, and "has someone typed here?" for sleeping tabs).
+- `src/adblock.ts`, `src/safebrowsing.ts`, `src/passwords.ts`, `src/defaultBrowser.ts`, `src/updates.ts`: ad blocking, scam warnings, saved passwords, the default browser, and updates.
+- `tests/e2e/`: checks that start Firn and click through it.
+- `brand/` and `assets/`: Firn's logo, wordmark, and app icons. `demo/`: the recorder for marketing clips.
 
-### Welcome
-
-The first time Firn opens, a short welcome fills the window with a calm sunrise over the snow ("First light") and sets things up, one card at a time. Every choice applies right away; from the space step on, the snow takes your space's color. You can skip it at any point (Esc or "Skip setup", bottom left). At the end, "Welcome in." appears and the browser rises into place from behind the snow (with "reduce motion" on, it simply fades).
-
-1. **Where the address bar goes:** in the sidebar, or at the top.
-2. **Your first space:** its name, color, and icon.
-3. **Your everyday sites:** tick a few (Gmail, Calendar, Drive, YouTube…) to start Basecamp. Each shows its own icon, the same one Basecamp will show: Firn reads the site's front page while the welcome is open (without cookies, and nothing on it runs) and picks its best icon. If a site can't be reached, it shows a simple letter.
-4. **Open links in Firn?** (optional, only where Firn can be the default and isn't yet): "Make Firn default" does the same as the Settings button (see Default browser below), or Continue skips it.
-5. **Three tips:** Ctrl+T, right-click, and hiding the sidebar.
-
-With no tabs open, the page shows the same sky and sunrise, with the snow and Firn's mark in the space's color, under "No open tabs". A new space starts out Glacier, Firn's own blue.
-
-Type "welcome" in the command bar to see it again. (Someone who used Firn before the welcome existed doesn't get it on their next start.) Its headlines are set in Fraunces with its soft (rounded) corners on and its quirky "wonky" letters off, the same as Firn's wordmark, built into Firn (`src/ui/fonts/`, under the SIL Open Font License) so nothing is downloaded.
-
-### Command bar
-
-**Ctrl+T** opens the command bar. Type an address or a search; it also finds your open tabs in every space (tabs in another space say which, and picking one takes you there) and pages from your history. Type a couple of letters of an action to run it: **pin**, **basecamp**, **copy** link, **close**, **reopen**, **clear**, **sidebar**, **new space**, or a space's name to go there.
-
-### Your session
-
-Firn saves your tabs (with their back/forward history and scroll position), the sidebar's width and collapsed state, and the window's size and position, and brings them back next time. Only the tab you were on loads right away; the others load when you click them. The file lives in `%APPDATA%\Firn\session.json` on Windows; deleting it starts Firn fresh. Your browsing history (for the command bar) is kept next to it in `history.json`, and your recent downloads in `downloads.json`, both on your computer only.
-
-### Basecamp and pinned tabs
-
-**Basecamp** is the grid of favorite sites at the top of the sidebar: the same in every space, up to 12. Right-click any tab and choose **Add to Basecamp**. Drag a tile to move it; the others glide aside to make room. The site you're on glows softly in its own color.
-
-**Pinned tabs** belong to one space and sit as rows under its name. Pin a tab with **Ctrl+D**, by right-clicking it, or by dragging it above the divider line (drag it back below to unpin). Click the space's name to fold its pins away (the pin you're on stays in view).
-
-Both remember the address they were added at as their *home*: right-click for **Go back to home**. Closing one doesn't remove it; it unloads the page and resets it to home, and it rests a little dimmed until you click it again. The line below the pins has **Clear**, which closes the space's everyday tabs.
-
-### Spaces
-
-Spaces keep separate sets of pinned and everyday tabs, like Work and Personal. Switch with the icons at the bottom of the sidebar or **Ctrl+Shift+1…9**; **+** makes a new space and lets you name it right away. Each space has its own color, which softly tints the frame and glass (switching spaces cross-fades between them), and its own icon: one of 16 simple line icons drawn for Firn, shown in the space's color so it never looks like a website's icon. "Change icon…" opens a small grid of them under the space's name. Right-click a space's icon (or use the ⋯ next to its name) to rename it, change its icon or color, or delete it. Right-clicking any empty spot in the sidebar offers the same color, icon, and name options for the space you're in. Right-click a tab to move it to another space. Each space remembers the tab you were last on, and everything is saved with your session.
-
-### History and settings
-
-The **Firn mark** button at the bottom-left of the sidebar (beside the space icons) opens the Firn menu: New tab, New space, History, Passwords, Downloads, and Settings.
-
-- **History** (Ctrl+H, or Cmd+Y on a Mac) shows the pages you've visited, newest first, grouped by day. Type to search, click a page to open it in a new tab, hover for ✕ to forget one, or use "Clear history…" (the last hour, today, or all time). It's kept on your computer only.
-- **Settings** (Ctrl+,) has just a few things: the **search engine** (DuckDuckGo by default; Google, Bing, Ecosia, or Startpage), the **theme** (match the system, light, or dark), **where the address bar sits** (in the sidebar, or at the top in a bar across the window that's always there, with the window buttons, back, forward, and reload), **where downloads are saved**, and **privacy**: saved passwords, scam and malware warnings (on or off), blocking ads and trackers (on or off), clear history, clear cookies and site data (signs you out of websites; it asks first), and reset every site's permissions. Changes apply right away and are kept in `settings.json` next to your session.
-
-### Saved passwords
-
-After you sign in to a site, a small card asks **Save password for example.com?** with **Not now** and **Save**. Firn only asks once the sign-in worked (the page moved on), so a mistyped password isn't offered. If you sign in with a new password for a login Firn already has, it offers to **Update** it instead.
-
-Next time, click into the site's sign-in form and Firn fills in your username and password. Nothing is filled until you click, and only on the very same site (and only over a secure https connection), so a look-alike site gets nothing.
-
-**Passwords** in the Firn menu (or Settings → Privacy → Manage…, or "saved passwords" in the command bar) lists them: search, **Show**, **Copy**, or **Delete** each one. They're encrypted with your computer's own protection (on Windows, the same lock your Windows account uses) and kept in `passwords.json` next to your session, on this computer only. If the computer has no such protection available, Firn doesn't save passwords at all rather than keep them unprotected.
-
-To do this, Firn adds a tiny helper to each web page that notices sign-in forms. It's walled off from the page: the site can't see it or talk to it, and it only reports a sign-in from the page's own main frame.
-
-### Scam and malware warnings
-
-Before any page opens, Firn checks its address against **Google Safe Browsing**, the same list of scam (phishing) and malware sites that Chrome, Firefox, and Safari use. A dangerous page is stopped before it loads, and a calm warning covers the tab ("This site may be a scam", "This site may harm your computer" or "This site may install unwanted software") with **Go back** (or close the tab, if there's nothing to go back to) and a quiet **Visit anyway**, which lets that address through until Firn closes. A dangerous link previewed in Lookout closes the preview and shows the same warning.
-
-It's done the private way. Firn downloads Google's lists about every half hour; they hold only the first few bytes of a code made from each dangerous address, not the addresses. Every page is checked against them on this computer. Only when the start of a code matches, which is rare, does Firn ask Google for the full codes that start that way. It sends just those 4 bytes, which many addresses share, never the address. The lists live in a `safe-browsing` folder next to your session. To turn it off: Settings → Privacy → Scam and malware warnings → Off.
-
-**Setting it up (once).** Google's service needs a free key, which gets built into your copy of Firn:
-
-1. Go to [console.cloud.google.com](https://console.cloud.google.com), sign in, and create a project (call it "Firn").
-2. In **APIs & Services → Library**, search for **Safe Browsing API** and click **Enable**.
-3. In **APIs & Services → Credentials**, click **Create credentials → API key**. Then open the key and, under **API restrictions**, choose **Restrict key → Safe Browsing API**, and save.
-4. Copy the key into a file named `safe-browsing-key.txt` in the `firn` folder (just the key, on one line). It's never uploaded to GitHub (`.gitignore` skips it).
-5. Run `npm start` or `npm run package` again.
-
-Without a key, Firn works the same but doesn't warn, and Settings says "Not set up in this copy of Firn". Google's free key is for non-commercial use; if Firn is ever sold, it should move to Google's paid version (Web Risk).
-
-### Default browser
-
-**Settings > Default browser > Make Firn default…** (also offered in the welcome) makes links clicked in other apps (mail, chat, documents) open in Firn, as new tabs in its normal window. If Firn isn't open, it starts with the link.
-
-- **On Windows**, no app may make itself the default (so no app can sneakily take over), so the button opens Windows' **Default apps** settings at Firn: choose Firn there. Firn's installer lists Firn among the browsers when it installs or updates, and removes it when Firn is uninstalled.
-- **On a Mac**, macOS asks "Use Firn as your default browser?"; Firn needs to be in the **Applications** folder.
-- Once it's the default, the row says "Firn is your default browser". (Copies run from the source code, or on Linux, don't show the row.)
-
-### Ads and trackers
-
-Firn blocks ads and trackers by default, with Ghostery's open-source blocker (`@ghostery/adblocker`) and the standard public block lists: EasyList, EasyPrivacy, and uBlock Origin's. Blocked things simply never load, so pages are calmer and faster, and fewer companies follow you around. (Sometimes an empty space is left where an ad was.)
-
-- **When a site breaks:** right-click the page and choose **Allow ads on this site**. Firn reloads it with everything. The address bar's site button shows it's allowed, and **Block ads on this site** (or the site button) turns blocking back on.
-- **Off entirely:** **Settings > Block ads and trackers**.
-- **What it sends:** about once a day Firn downloads the latest lists (about 6 MB) from Ghostery's public GitHub repository and keeps them on your computer, so blocking also works offline. Downloading them sends nothing about you or what you browse; every check happens on your computer.
-
-### Downloads
-
-Downloads save straight to your Downloads folder, like Chrome (a name that's already taken gets " (1)"). While a file downloads, it shows at the bottom of the sidebar with a ring that fills as it arrives; hover it to cancel. Click a finished download to open it, or hover it to show it in its folder or take it off the list (the file stays). A download that was cancelled or didn't finish can be clicked to try again. PDFs open right in the tab, in Chromium's PDF viewer (its download button saves them like any other download). Finished downloads leave the sidebar on their own after half an hour; "Open downloads folder" in the command bar finds them later.
-
-### Site permissions
-
-Websites have to ask before using your **camera, microphone, location, notifications, or clipboard**, or before opening another app from a link (like a Zoom link). A small card at the top-left of the page asks, in plain words ("meet.google.com wants to use your camera and microphone"), with **Block** and **Allow**; Firn remembers the answer for that site. Pressing Esc closes it without answering, so the site can ask again later. A site that isn't on screen waits until you're looking at it. Harmless things (fullscreen, protected video like Netflix) are allowed without asking, and unusual hardware access (USB, serial ports) is refused.
-
-Once a site has answers saved, a small button appears at the left of the address bar: click it to change an answer or choose "Ask again next time". Answers are kept in `permissions.json` next to your session, on your computer only.
-
-(One limit of Electron, the base Firn is built on: before a site has been answered, a site that quietly checks first sees "blocked" rather than "not asked yet". Sites that simply ask, which is most of them, get the prompt as expected.)
-
-### Right-click menu
-
-Right-clicking a page shows a short menu with only what fits what you clicked:
-
-- **A link:** open it in a new tab (in the background), open it in Lookout, or copy it. Email links offer "Copy email address".
-- **An image:** save it or copy it.
-- **Selected text:** copy it, or search for it.
-- **A text box:** cut, copy, paste, select all, plus spelling suggestions for a misspelled word.
-- **Anywhere else:** back, forward, reload.
-
-### Lookout
-
-**Shift+click** a link to preview it in Lookout: a rounded panel floating over the page, with the page dimmed behind it. Press **Esc** or click outside to close it, or use the button beside it to **open it as a tab** (the panel grows into the page and keeps everything, scroll position included). Links that open real popup windows, like "Sign in with Google", still open as windows.
-
-Lookout also opens by itself in one case: in a **Basecamp or pinned tab**, a link that would open a new tab and goes to **another site** (say, a link in an email) opens in Lookout instead. Your pinned tab stays where it was and no stray tabs pile up; if you want to keep the page, use "open as tab". Middle-click or Ctrl+click such a link to open it as a background tab instead. Everyday tabs open links as usual.
-
-### Split view
-
-Right-click the tab you're on and choose **Split view with** to pick another tab to show beside it (or **New tab…** to open something new beside it), or right-click any other tab and choose **Split view with current tab**. The two sit side by side, each with its own address and back/forward. Click into a side to work in it (the address bar follows, and a soft ring shows which side it is). Drag the gap between them to resize, or double-click it to even them out. In the sidebar the pair is one row: click either half, or drag the row to move both. Hover it and use the button on the right (or right-click → **Separate split view**) to make them ordinary tabs again; closing one side leaves the other on its own. Split views are saved with your session.
-
-### Frosted glass
-
-On Windows 11 (22H2 or later) and macOS, the frame around the page is frosted glass while Firn is in focus: the colors behind the window softly show through. When you switch to another app it turns solid. To turn it off, start Firn with `FIRN_NO_GLASS=1` (in PowerShell: `$env:FIRN_NO_GLASS=1; npm start`).
+Your data lives in `%APPDATA%\Firn` on Windows (`~/Library/Application Support/Firn` on a Mac): `session.json` (tabs and spaces; deleting it starts Firn fresh), `history.json`, `settings.json`, `passwords.json`, and friends.
 
 ### If something misbehaves
 
 - **Ctrl+Shift+D** prints a snapshot of the window's layers, the cursor, and the screen to the terminal.
-- If the window ever shows black or flickers behind the sidebar, try turning frosted glass off (above) and tell Claude.
-- To log what the layers do as you use Firn, start it with debug logging. In PowerShell: `$env:FIRN_DEBUG=1; npm start` (close and reopen PowerShell to turn it off again).
+- Start Firn with `FIRN_DEBUG=1` (in PowerShell: `$env:FIRN_DEBUG=1; npm start`) to log what the layers do.
+- `FIRN_NO_GLASS=1` turns off the frosted-glass frame, if the window ever shows black or flickers behind the sidebar.
 
 ## License
 

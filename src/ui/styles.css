@@ -690,8 +690,115 @@ button {
   padding: 6px 8px 6px 12px;
   border-radius: 10px;
   cursor: default;
-  animation: rise 200ms ease-out;
   transition: background var(--motion);
+}
+
+/* A new download arrives (DownloadRow in Downloads.tsx): its slot opens
+   (the rows around it glide aside), the row rises into it, and a soft wash
+   of the space's color fades from it over a second and a half. Rows that
+   were already there when Firn started are simply there. */
+.download-slot {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+.download-slot-inner {
+  min-height: 0;
+}
+
+.download-slot.is-arriving {
+  animation: download-open 260ms ease-out;
+}
+
+.download.is-new {
+  animation: download-arrive 320ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.download.is-new::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgb(var(--space-rgb, 128 120 110) / 0.16);
+  pointer-events: none;
+  animation: download-wash 1600ms ease-out 200ms both;
+}
+
+@keyframes download-open {
+  from {
+    grid-template-rows: 0fr;
+  }
+}
+
+@keyframes download-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes download-wash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* The flake from the page lands: the ring nods (grows a touch and settles).
+   When the file is in, the arrow settles into a file, and a soft ring in
+   the space's color spreads and fades, like the archive box's pulse. */
+.download-icon .is-nodding {
+  display: grid;
+  animation: download-nod 320ms ease-out;
+}
+
+.download-icon .is-settling {
+  display: grid;
+  animation: download-settle 260ms ease-out;
+}
+
+.download-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgb(var(--space-rgb, 128 120 110) / 0.4);
+  pointer-events: none;
+  animation: archive-ring 1000ms ease-out 120ms both;
+}
+
+@keyframes download-nod {
+  40% {
+    transform: scale(1.18);
+  }
+}
+
+@keyframes download-settle {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .download-slot.is-arriving,
+  .download-icon .is-nodding,
+  .download-icon .is-settling {
+    animation: none;
+  }
+  .download.is-new {
+    animation: download-fade 200ms ease-out both;
+  }
+  .download-pulse {
+    animation: archive-ring-still 900ms ease-out both;
+  }
+}
+
+@keyframes download-fade {
+  from {
+    opacity: 0;
+  }
 }
 
 .download:hover {
@@ -699,6 +806,7 @@ button {
 }
 
 .download-icon {
+  position: relative;
   width: 18px;
   height: 18px;
   flex-shrink: 0;
@@ -1400,6 +1508,30 @@ button {
    the page (drawn by the floating layer; src/ui/Floating.tsx). It looks
    like the tab it is, lifted. While it's carried, its row in the sidebar
    waits in its place, faded. */
+/* A download's hand-off (DownloadFlake in Floating.tsx): a small Firn
+   flake (the mark, as the welcome's drifting flakes are drawn), a touch
+   deeper than the space's color so a pale one still shows on a white
+   page, gliding to the sidebar. */
+.download-flight {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.download-flight-flake {
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  background: color-mix(
+    in srgb,
+    rgb(var(--space-rgb, 128 120 110)) 72%,
+    var(--text)
+  );
+  mask: url('./firn-mark.svg') center / contain no-repeat;
+  opacity: 0;
+}
+
 .carried-tab {
   position: fixed;
   top: 0;
