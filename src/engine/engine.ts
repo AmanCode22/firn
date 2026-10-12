@@ -96,6 +96,9 @@ export interface Page {
   back(): void;
   forward(): void;
   reload(ignoreCache?: boolean): void;
+  // Draws the page again (after the window comes back from being
+  // minimized, when a page can otherwise stay blank).
+  repaint(): void;
   stop(): void;
   focus(): void;
   toggleDevTools(): void;

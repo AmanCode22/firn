@@ -54,6 +54,7 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `archive`     | Archiving old tabs: an everyday tab unused for the chosen days of use goes to the Archive (pinned, Basecamp, the current tab, and each space's latest stay), the archive box (bottom right, its pulse), the Archive panel by space, forgetting after 30 days of use, bringing one back, Settings, and a restart |
 | `installer`   | Windows installer events (plain logic, no Windows needed): a Start menu entry only on install, nothing on updates, Start menu and desktop shortcuts removed on uninstall, and Firn listed among the browsers |
 | `mactips`     | Hover labels on a Mac (pretended): the system's own tooltips (titles kept, no label of Firn's), a tab's name only when cut off, the top bar's buttons too |
+| `restore`     | Back from minimized: the page on screen (and Firn's own layers) drawn again, pages out of sight left alone |
 
 `site/` is a tiny test website the checks visit (served on this computer
 only). `cdp.cjs`, `playwright.cjs` and `warp.py` are small helpers.

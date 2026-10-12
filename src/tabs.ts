@@ -1322,6 +1322,11 @@ export class TabManager {
 
   // --- Layout ---------------------------------------------------------------
 
+  // Draws the pages on screen again (see Page.repaint).
+  repaint() {
+    for (const id of this.onScreen) this.entries.get(id)?.page.repaint();
+  }
+
   layout() {
     // (A glide is asked for just before the layout it's for.)
     const glide = this.glideNext;

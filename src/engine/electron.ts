@@ -502,6 +502,10 @@ class ElectronPage implements Page {
     else this.web.reload();
   }
 
+  repaint() {
+    if (!this.web.isDestroyed()) this.web.invalidate();
+  }
+
   stop() {
     this.web.stop();
   }

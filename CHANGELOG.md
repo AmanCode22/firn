@@ -1,5 +1,20 @@
 # What's new in Firn
 
+## Firn 0.7.1
+
+**Firn can now open your PDFs and saved pages.**
+
+Firn can now be your choice for PDFs, saved web pages, and web images too, the way other browsers can, and a page no longer goes blank after you bring Firn back from the taskbar.
+
+### Better
+
+- **More things open in Firn.** PDFs, saved web pages, and .svg and .webp images can now open in Firn when you choose it in Windows' Default apps or a Mac's "Open With". Nothing changes unless you pick Firn.
+- **The archive box** is now the same size as the space icons beside it, so the bottom of the sidebar looks even.
+
+### Fixed
+
+- **A blank page after minimizing.** Bringing Firn back from the taskbar no longer leaves the page blank until you move the mouse over something.
+
 ## Firn 0.7.0
 
 **Tabs you're done with now tidy themselves away.**

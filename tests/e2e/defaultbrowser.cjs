@@ -86,6 +86,32 @@ const check = (n, ok, x = '') => {
     (await titles()).length === 2,
   );
 
+  // A PDF (and the like) handed over from another app opens in Firn; a
+  // plain text file doesn't.
+  const site = require('path').join(__dirname, 'site');
+  const fourth = spawn(
+    ELECTRON,
+    [
+      '--no-sandbox',
+      '.',
+      require('path').join(site, 'doc.pdf'),
+      require('path').join(site, 'notes.txt'),
+    ],
+    { cwd: ROOT, stdio: 'ignore' },
+  );
+  await new Promise((r) => fourth.on('exit', r));
+  await wait(2000);
+  const urls = await app.evaluate(({ webContents }) =>
+    webContents.getAllWebContents().map((w) => w.getURL()),
+  );
+  check(
+    'a PDF from another app opens in a new tab; a text file is ignored',
+    urls.some((u) => u.startsWith('file://') && u.endsWith('/doc.pdf')) &&
+      !urls.some((u) => u.endsWith('/notes.txt')) &&
+      (await titles()).length === 3,
+    urls.filter((u) => u.startsWith('file://')).join(', '),
+  );
+
   // Settings: no "Default browser" here (a copy that can't be the default).
   await ui.evaluate(() => window.firn.runAction('settings'));
   await wait(600);

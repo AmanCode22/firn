@@ -913,9 +913,10 @@ button {
   display: flex;
 }
 
+/* The space icons' size, a little quieter (full on hover). */
 .archive-button svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   opacity: 0.75;
   transition: opacity var(--motion);
 }
