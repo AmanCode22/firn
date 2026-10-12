@@ -256,6 +256,24 @@ const check = (n, ok, x = '') => {
     (await prompt()) === '127.0.0.1:8765 wants to show notifications',
     await prompt(),
   );
+
+  // Asking twice before you answer (sites often do): one answer settles
+  // both, no second prompt.
+  await pg2.evaluate(() => {
+    window.second = null;
+    Notification.requestPermission().then((r) => (window.second = r));
+  });
+  await wait(400);
+  await fl.click('.permission-button.is-allow');
+  await wait(800);
+  const answered = await pg2.evaluate(() => [window.result, window.second]);
+  check(
+    'a site asking twice: one answer settles both, no second prompt',
+    (await prompt()) === null &&
+      answered[0] === 'notify:granted' &&
+      answered[1] === 'granted',
+    JSON.stringify({ prompt: await prompt(), answered }),
+  );
   console.log(
     `\n${results.filter(Boolean).length}/${results.length} checks passed`,
   );

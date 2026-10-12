@@ -9,6 +9,7 @@ import type { TabView } from '../types';
 import { useIconColor } from './iconColor';
 import { useFollowPointer } from './followPointer';
 import { carry, dragOverPage } from './splitDrag';
+import { layerShown } from './quietWhenHidden';
 import { TabIcon, TabSound, tabTitle } from './TabList';
 
 // Basecamp: a grid of favorite sites at the top of the sidebar, the same in
@@ -95,7 +96,7 @@ export function Basecamp({
     const was = before.current;
     before.current = null;
     const grid = gridRef.current;
-    if (!was || !grid) return;
+    if (!was || !grid || !layerShown()) return;
     const now = spotsOf(grid);
     for (const el of tileElements(grid)) {
       const id = el.dataset.tile!;

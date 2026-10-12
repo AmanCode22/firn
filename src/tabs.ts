@@ -533,8 +533,14 @@ export class TabManager {
   moveToSpace(id: string, spaceId: string) {
     const entry = this.entries.get(id);
     if (!entry || entry.tab.basecamp || entry.tab.spaceId === spaceId) return;
-    this.separate(id);
+    const wasSplit = this.separate(id);
     entry.tab.spaceId = spaceId;
+    // The other half of a split view, moved away: the current tab fills the
+    // page again.
+    if (wasSplit && this.activeId !== id) {
+      this.showActiveAlone();
+      return;
+    }
     if (this.activeId === id) {
       this.hideOnScreen();
       this.activeId = null;
@@ -559,6 +565,8 @@ export class TabManager {
       entry.page.destroy();
     }
     this.renumber();
+    // (A tab there may have been in the mini player.)
+    this.emitTabs();
   }
 
   // Where a group starts in the order (or would start, if it's empty).
@@ -596,10 +604,11 @@ export class TabManager {
   pin(id: string) {
     const tab = this.entries.get(id)?.tab;
     if (!tab || groupOf(tab) !== EVERYDAY) return;
-    this.separate(id);
+    const wasSplit = this.separate(id);
     tab.pinned = true;
     tab.homeUrl = tab.url;
     this.reinsert(id, () => this.groupEnd(PINNED));
+    if (wasSplit) this.showActiveAlone();
   }
 
   // Unpins a tab: it moves to the top of the everyday tabs.
@@ -622,11 +631,12 @@ export class TabManager {
   addToBasecamp(id: string) {
     const tab = this.entries.get(id)?.tab;
     if (!tab || tab.basecamp || this.basecampCount >= BASECAMP_MAX) return;
-    this.separate(id);
+    const wasSplit = this.separate(id);
     tab.basecamp = true;
     tab.pinned = false;
     tab.homeUrl = tab.homeUrl ?? tab.url;
     this.reinsert(id, () => this.groupEnd(BASECAMP));
+    if (wasSplit) this.showActiveAlone();
   }
 
   // Takes a tab out of Basecamp: it becomes an everyday tab in this space.
@@ -834,15 +844,24 @@ export class TabManager {
     else this.emitTabs();
   }
 
-  // Takes a tab's split view apart (without redrawing).
+  // Takes a tab's split view apart (without redrawing); whether it was in
+  // one.
   private separate(id: string) {
     const split = this.splitOf(id);
-    if (!split) return;
+    if (!split) return false;
     this.splits.delete(split.id);
     for (const tabId of split.tabIds) {
       const tab = this.entries.get(tabId)?.tab;
       if (tab) tab.splitGroupId = undefined;
     }
+    return true;
+  }
+
+  // After a split view was taken apart: the current tab alone on the page
+  // (the other half put away).
+  private showActiveAlone() {
+    if (this.activeId) this.activate(this.activeId);
+    else this.emitTabs();
   }
 
   // --- Dragging a tab into split view ----------------------------------------

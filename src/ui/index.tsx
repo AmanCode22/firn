@@ -6,6 +6,7 @@ import { Peek } from './Peek';
 import { TopBar } from './TopBar';
 import './styles.css';
 import { installTooltips } from './tooltips';
+import { quietWhenHidden } from './quietWhenHidden';
 
 // The same UI code runs in several layers; `?view=` says which one this is.
 const view = new URLSearchParams(location.search).get('view') ?? 'main';
@@ -24,6 +25,8 @@ const LAYERS: Record<string, () => React.JSX.Element | null> = {
 const Root = LAYERS[view] ?? App;
 // Firn's own hover labels, in place of the system's tooltips.
 installTooltips(view);
+// No animating while this layer is put away.
+quietWhenHidden(view);
 
 // Light or dark, as the main process says (the system's setting, or the
 // choice in settings); until it does, the system's.

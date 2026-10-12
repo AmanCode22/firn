@@ -1,5 +1,23 @@
 # What's new in Firn
 
+## Firn 0.7.2
+
+**Safer passwords, and a lighter Firn.**
+
+We looked back over everything Firn does and tightened it up: your saved passwords are better protected, and Firn now uses far less of your computer while it sits open in the background.
+
+### Better
+
+- **Saved passwords fill in only when you click into a login**, or tab to it. A website's own code can no longer make Firn fill in a password on its own.
+- **Much lighter when idle.** Firn now uses about a fifth of the processor it did while sitting open, which is kinder to laptop batteries.
+- **Your tabs are saved within a couple of seconds**, even while a busy page keeps changing its title.
+
+### Fixed
+
+- **Pinning or adding to Basecamp from split view** now leaves just your page on screen, instead of both halves.
+- **A site asking twice** for your camera or notifications now asks you only once.
+- **On Windows, an update finishing in the background** no longer brings Firn to the front.
+
 ## Firn 0.7.1
 
 **Firn can now open your PDFs and saved pages.**

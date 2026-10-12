@@ -98,6 +98,7 @@ const bridge: FirnBridge = {
   hideTip: () => ipcRenderer.send('tip:hide'),
   tipSize: (width, height) => ipcRenderer.send('tip:size', width, height),
   onTipState: (listener) => listen('tip:state', listener),
+  onLayerShown: (listener) => listen('layer:shown', listener),
   onCarryState: (listener) => listen('carry:state', listener),
   onSplitHandleState: (listener) => listen('split-handle:state', listener),
   ready: () => ipcRenderer.send('ui:ready'),

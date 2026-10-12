@@ -91,6 +91,7 @@ const launch = async (tidies) => {
   const { evalIn } = await require('./cdp.cjs').cdp();
   const ui = (expr) => evalIn((u) => u.endsWith(':5173/'), expr);
   const fl = (expr) => evalIn((u) => u.includes('view=floating'), expr);
+  const peek = (expr) => evalIn((u) => u.includes('view=peek'), expr);
   // Until the sidebar is there (the first start compiles it), then past the
   // first tidy, 8 seconds after Firn opens.
   for (let i = 0; i < 60; i++) {
@@ -110,7 +111,7 @@ const launch = async (tidies) => {
     await wait(1000);
   }
   await wait(Math.max(2000, 12000 - (Date.now() - started)));
-  return { p, ui, fl };
+  return { p, ui, fl, peek };
 };
 
 (async () => {
@@ -122,7 +123,7 @@ const launch = async (tidies) => {
     JSON.stringify({ ...settings, archiveAfter: undefined }),
   );
 
-  let { p, ui, fl } = await launch(true);
+  let { p, ui, fl, peek } = await launch(true);
   const rows = () =>
     ui(`[...document.querySelectorAll('.space-tabs .tab, .basecamp-tile')].map(
       (t) => t.getAttribute('data-tip') || t.getAttribute('aria-label') || t.textContent.trim())`);
@@ -159,6 +160,16 @@ const launch = async (tidies) => {
     JSON.stringify(box),
   );
   check('...and it pulsed when tabs were tidied away', box?.pulsed);
+  // The hidden layers (the peeking sidebar, the floating layer) got the
+  // same news, but draw nothing: no animation is left running there to
+  // keep Firn busy while idle (src/ui/quietWhenHidden.ts).
+  const running = `document.getAnimations().filter((a) => a.playState === 'running').length`;
+  const stillRunning = [await peek(running), await fl(running)];
+  check(
+    '...while the hidden layers have no animation left running',
+    stillRunning.every((n) => n === 0),
+    stillRunning.join(','),
+  );
 
   await ui(`document.querySelector('[data-testid="archive-box"]').click()`);
   await wait(800);
