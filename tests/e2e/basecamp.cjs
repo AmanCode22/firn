@@ -207,6 +207,26 @@ const check = (n, ok, x = '') => {
     four === '4' && more[0] === '3+2' && more[1] === '3+3',
     `${four}, ${more.join(', ')}`,
   );
+  // A seventh, and the sidebar at its narrowest (room for 3 across): never
+  // one tile alone on a row.
+  await ui.click('.new-tab');
+  await wait(300);
+  await fl.keyboard.type('127.0.0.1:8765/two.html');
+  await fl.keyboard.press('Enter');
+  await wait(1200);
+  await ui.evaluate(() => window.firn.runAction('basecamp'));
+  await wait(600);
+  const seven = await rows();
+  await ui.evaluate(() => window.firn.setSidebarWidth(200));
+  await wait(800);
+  const narrow = await rows();
+  await ui.evaluate(() => window.firn.setSidebarWidth(260));
+  await wait(500);
+  check(
+    '7 tiles: 4 + 3, and at the narrowest sidebar 3 + 2 + 2 (never one alone)',
+    seven === '4+3' && narrow === '3+2+2',
+    `${seven}, narrow ${narrow}`,
+  );
 
   console.log(
     `\n${results.filter(Boolean).length}/${results.length} checks passed`,

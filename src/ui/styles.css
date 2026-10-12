@@ -1219,7 +1219,7 @@ button {
 .basecamp-grid {
   display: grid;
   /* How many tiles a row holds is worked out in Basecamp.tsx
-     (evenColumns): the rows as even as they can be, each tile at least
+     (rowSizes): the rows as even as they can be, each tile at least
      52px wide (about 4 per row at the default sidebar width). Until then: */
   grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
   gap: 6px;
