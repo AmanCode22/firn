@@ -1,6 +1,13 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "react"],
   "categories": {
     "correctness": "warn"
+  },
+  "rules": {
+    "react-hooks/rules-of-hooks": "error",
+    "react/refs": "off",
+    "react/purity": "off",
+    "react/set-state-in-effect": "off"
   }
 }

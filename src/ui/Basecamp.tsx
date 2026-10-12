@@ -269,6 +269,8 @@ export function Basecamp({
   };
 
   const followPointer = useFollowPointer(onPointerMove, finish);
+  // (Before the early return below: hooks must run on every render.)
+  const tileDown = useSteady(onPointerDown);
 
   if (!tabs.length) return null;
   const offsets = drag?.active
@@ -276,7 +278,6 @@ export function Basecamp({
     : pending?.signature === signature
       ? pending.offsets
       : null;
-  const tileDown = useSteady(onPointerDown);
   return (
     <div className="basecamp">
       <div

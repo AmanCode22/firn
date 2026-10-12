@@ -56,7 +56,7 @@ import {
   startUpdates,
   updateState,
 } from './updates';
-import { DEMO, demoBounds, installDemoHooks, useDemoProfile } from './demo';
+import { DEMO, demoBounds, installDemoHooks, applyDemoProfile } from './demo';
 import { macMenuTemplate } from './menu';
 import { matchShortcut, menuAccelerator } from './shortcuts';
 import { ARCHIVE_CHOICES, isOld, noteDayUsed } from './archive';
@@ -3679,7 +3679,7 @@ const createWindow = () => {
 // Only one Firn runs at a time. Opening it again brings the existing window
 // forward instead, so two copies can never overwrite each other's session.
 // (Demo mode first moves Firn's data to its throwaway folder.)
-useDemoProfile();
+applyDemoProfile();
 installDemoHooks();
 // (Not for the installer's own short start: asking for the lock would
 // tell a Firn that's already running, which then comes to the front, e.g.

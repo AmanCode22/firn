@@ -24,7 +24,7 @@ export const DEMO_SIZE = { width: 1440, height: 900 };
 
 // Must run before anything reads Firn's data folder (and before the
 // one-copy-at-a-time check, which goes by that folder).
-export function useDemoProfile() {
+export function applyDemoProfile() {
   if (!DEMO) return;
   const folder = process.env.FIRN_DEMO_PROFILE;
   if (!folder) throw new Error('FIRN_DEMO=1 needs FIRN_DEMO_PROFILE');
