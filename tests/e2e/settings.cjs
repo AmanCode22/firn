@@ -136,8 +136,8 @@ const check = (n, ok, x = '') => {
     foot: document.querySelector('.sheet-footer span').textContent,
   }));
   check(
-    '...showing DuckDuckGo, Match system, the downloads folder and the version',
-    v.engine === 'DuckDuckGo' &&
+    '...showing Google (the default), Match system, the downloads folder and the version',
+    v.engine === 'Google' &&
       v.theme === 'Match system' &&
       !!v.folder &&
       /^Firn \d/.test(v.foot),
@@ -160,7 +160,7 @@ const check = (n, ok, x = '') => {
   );
   check(
     'the search engine dropdown lists the five engines',
-    opts.join(',') === 'DuckDuckGo*,Google,Bing,Ecosia,Startpage',
+    opts.join(',') === 'DuckDuckGo,Google*,Bing,Ecosia,Startpage',
     opts.join(','),
   );
   await fl.keyboard.press('Escape');
@@ -172,11 +172,11 @@ const check = (n, ok, x = '') => {
   );
   await fl.click('.dropdown-button');
   await wait(300);
-  await fl.click('.dropdown-option:has-text("Google")');
+  await fl.click('.dropdown-option:has-text("Bing")');
   await wait(500);
   check(
-    'choosing Google is saved',
-    saved().searchEngine === 'google',
+    'choosing Bing is saved',
+    saved().searchEngine === 'bing',
     JSON.stringify(saved()),
   );
   await fl.keyboard.press('Escape');
@@ -191,9 +191,9 @@ const check = (n, ok, x = '') => {
     webContents.getAllWebContents().map((w) => w.getURL()),
   );
   check(
-    '...and searches now use Google',
+    '...and searches now use Bing',
     urls.some((u) =>
-      u.startsWith('https://www.google.com/search?q=glacier%20ice'),
+      u.startsWith('https://www.bing.com/search?q=glacier%20ice'),
     ),
     urls.filter((u) => /search/.test(u)).join(' '),
   );

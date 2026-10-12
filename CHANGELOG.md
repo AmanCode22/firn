@@ -1,5 +1,28 @@
 # What's new in Firn
 
+## Firn 0.8.0
+
+**A friendlier welcome, and a Basecamp that lines up.**
+
+The welcome now shows how Firn's sidebar works, Basecamp, pinned tabs, and everyday tabs, and lets you pick your search engine. Basecamp's tiles now always sit in even rows.
+
+### New
+
+- **How your sidebar works.** A new welcome step draws the sidebar and explains its three parts: Basecamp for your everyday sites, pinned tabs for each space, and everyday tabs that tidy themselves away. Right-click any tab to add it to Basecamp or pin it.
+- **Choose your search.** The welcome asks which search you like: Google, DuckDuckGo, or Bing. More choices are in Settings.
+
+### Better
+
+- **Google is now the starting search** for new installs. If you already use Firn, nothing changes.
+- **Basecamp's tiles sit in even rows**: five tiles make a row of 3 and a row of 2, six make two rows of 3, and a tile is never left alone on a row.
+- **Downloads are easier to notice.** A new download rises in with a soft wash of your space's color, and a gentle ring marks the moment it's finished. The flake from 0.7.5 is gone.
+- **Websites see Firn as Chrome**, the browser it's built on, so sites that acted strangely in Firn may now work as they do in Chrome.
+
+### Fixed
+
+- **Long download names** no longer push the download, and its buttons, under the page.
+- **A page staying blank after minimizing**, on Windows: another fix, this time for how Windows decides what needs drawing.
+
 ## Firn 0.7.5
 
 **Watch your downloads land.**
