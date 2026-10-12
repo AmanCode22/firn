@@ -125,6 +125,48 @@ function fill(field: Field, value: string) {
   field.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
+// Only you can make Firn fill a login: by clicking into the field, or
+// tabbing to it, a moment ago. A site's own script moving focus (or a
+// hidden form an ad or tracker slipped in) gets nothing, the way Chrome
+// guards against scripts harvesting saved passwords. Events the person
+// makes are "trusted"; ones a script makes aren't.
+const PERSON_WITHIN_MS = 1000;
+let pressedOn: { target: EventTarget | null; at: number } = {
+  target: null,
+  at: 0,
+};
+let tabbedAt = 0;
+document.addEventListener(
+  'pointerdown',
+  (e) => {
+    if (e.isTrusted) pressedOn = { target: e.target, at: performance.now() };
+  },
+  true,
+);
+document.addEventListener(
+  'keydown',
+  (e) => {
+    if (e.isTrusted && e.key === 'Tab') tabbedAt = performance.now();
+  },
+  true,
+);
+const personFocused = (el: Field) => {
+  const now = performance.now();
+  const clicked =
+    now - pressedOn.at < PERSON_WITHIN_MS &&
+    pressedOn.target instanceof Node &&
+    (pressedOn.target === el ||
+      el.contains(pressedOn.target) ||
+      (el.labels ? [...el.labels] : []).some((l) =>
+        l.contains(pressedOn.target as Node),
+      ));
+  return clicked || now - tabbedAt < PERSON_WITHIN_MS;
+};
+// Shown for real: not see-through or hidden by the page's styles.
+const reallyShown = (el: Element) =>
+  isVisible(el) &&
+  el.checkVisibility({ opacityProperty: true, visibilityProperty: true });
+
 // Clicking into a login form fills the saved login (once per page, and
 // only into empty fields).
 let filled = false;
@@ -134,6 +176,7 @@ document.addEventListener(
     if (filled) return;
     const el = e.target as Field;
     if (!(el instanceof HTMLInputElement)) return;
+    if (!e.isTrusted || !personFocused(el)) return;
     const password =
       el.type === 'password'
         ? el
@@ -141,6 +184,7 @@ document.addEventListener(
             (p) => usernameFieldFor(p) === el,
           );
     if (!password || password.value) return;
+    if (!reallyShown(el) || !reallyShown(password)) return;
     filled = true;
     const login: { username: string; password: string } | null =
       await ipcRenderer.invoke('firn-page:saved-login');

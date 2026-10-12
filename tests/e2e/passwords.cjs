@@ -119,6 +119,46 @@ const check = (n, ok, x = '') => {
     'nothing is filled before you click into the form',
     (await pg.evaluate(() => document.getElementById('pw').value)) === '',
   );
+  // A site's own script can't make Firn fill: not by moving focus into
+  // the form, nor right after you clicked somewhere else on the page, nor
+  // into a see-through form it slipped in.
+  const values = () =>
+    pg.evaluate(() =>
+      [...document.querySelectorAll('input')].map((i) => i.value).join(''),
+    );
+  await pg.evaluate(() => document.getElementById('email').focus());
+  await wait(600);
+  const byScript = await values();
+  await pg.evaluate(() => document.activeElement.blur());
+  await pg.mouse.click(300, 400);
+  await pg.evaluate(() => document.getElementById('pw').focus());
+  await wait(600);
+  const afterClickElsewhere = await values();
+  await pg.evaluate(() => {
+    document.activeElement.blur();
+    const f = document.createElement('form');
+    f.style.opacity = '0';
+    f.innerHTML =
+      '<input id="sneaky-user" type="email"><input id="sneaky-pw" type="password">';
+    document.body.append(f);
+  });
+  const sneaky = await pg.evaluate(() => {
+    const r = document.getElementById('sneaky-user').getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  await pg.mouse.click(sneaky.x, sneaky.y);
+  await wait(600);
+  const intoHidden = await values();
+  await pg.evaluate(() => {
+    document.activeElement.blur();
+    document.querySelector('#sneaky-user').form.remove();
+  });
+  check(
+    "a site's script can't make Firn fill a login (focus by script, a see-through form)",
+    byScript === '' && afterClickElsewhere === '' && intoHidden === '',
+    JSON.stringify([byScript, afterClickElsewhere, intoHidden]),
+  );
+
   await pg.click('#email');
   await wait(600);
   const filled = await pg.evaluate(() => [
