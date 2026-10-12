@@ -59,6 +59,7 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `updatestatus` | Settings > Updates: the version and where updates are, "Check for updates", "Restart now" once a new version is ready (pretended), and a copy that can't update itself saying why |
 | `topedge` | The top edge (Windows/Linux, "In the sidebar"): a site's own search box at the very top keeps its clicks (no top bar), a flick past the edge brings nothing, resting at the very top brings the bar, and a setting changing as it slides away doesn't leave it behind |
 | `sleep` | Sleeping tabs (pretended: 3 seconds): a tab not on screen for a while is set aside and rests quieter; the tab on screen, one playing sound, and one with typed text stay awake; clicking a sleeping tab brings it back with its history; a tab just left stays awake the full time |
+| `downloadfx` | A download's small moments, clicked with a real mouse: a Firn flake glides from the click to the sidebar (the floating layer in a small box around its path, then gone), the new row's slot opens and it rises in with a wash of color, the ring nods as the dot lands, the file settles in with a soft ring when done, and rows already there at start are simply there |
 
 `site/` is a tiny test website the checks visit (served on this computer
 only). `cdp.cjs`, `playwright.cjs` and `warp.py` are small helpers.
