@@ -3717,6 +3717,18 @@ const createWindow = () => {
   if (pendingLinks.length) openLinks(pendingLinks.splice(0));
 };
 
+// Windows: Chromium stops drawing a window it thinks is covered or
+// minimized, and with pages in views of their own (WebContentsView) it
+// doesn't always start again when the window comes back: David's page
+// stayed blank after restoring Firn from the taskbar, even with a redraw
+// and a size nudge (repaintAll). Turning that guess off keeps every page
+// drawn; a minimized window is still idle (its pages are hidden).
+if (process.platform === 'win32')
+  app.commandLine.appendSwitch(
+    'disable-features',
+    'CalculateNativeWinOcclusion',
+  );
+
 // Only one Firn runs at a time. Opening it again brings the existing window
 // forward instead, so two copies can never overwrite each other's session.
 // (Demo mode first moves Firn's data to its throwaway folder.)
