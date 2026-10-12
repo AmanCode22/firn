@@ -203,6 +203,10 @@ const LIGHTS_GONE_X = -60;
 // Once the mouse leaves the bar, wait this long before sliding it away, so
 // brushing past the edge doesn't make it flicker.
 const TOP_BAR_LINGER_MS = 250;
+// The mouse rests at the top edge this long before the bar comes down, so
+// flicking up to a site's own search box or menu doesn't bring it (and move
+// the page out from under the mouse).
+const TOP_BAR_DWELL_MS = 250;
 
 // The window's name (the Dock's menu, the Window menu, the taskbar): the
 // page's title, cut short like the sidebar's tabs (some sites put a whole
@@ -1462,9 +1466,13 @@ const createWindow = () => {
   const syncTopBar = (animate = true) => {
     syncTrafficLights();
     if (!readyUi.has(topBar.webContents)) return;
-    clearInterval(topBarWatch);
-    clearTimeout(topBarHideTimer);
+    // (Timers are cancelled only by a branch that takes over: cancelling a
+    // bar's pending hide while it slides away would leave it on screen,
+    // unseen, and on Windows its drag band would keep catching clicks at
+    // the top of the page.)
     if (addressOnTop()) {
+      clearInterval(topBarWatch);
+      clearTimeout(topBarHideTimer);
       topBarShown = true;
       showLayer(topBar);
       send('top-bar:state', true);
@@ -1475,6 +1483,8 @@ const createWindow = () => {
         relayout();
       }
     } else if (topBarShown) {
+      clearInterval(topBarWatch);
+      clearTimeout(topBarHideTimer);
       topBarShown = false;
       send('top-bar:state', false);
       if (isFullscreen()) {
@@ -2138,6 +2148,7 @@ const createWindow = () => {
   // than waiting for hover events, which never fire again while the pointer
   // stays pressed against the screen's edge (e.g. a maximized window).
   let edgeWatch: ReturnType<typeof setTimeout> | undefined;
+  let topEdgeSince = 0;
   const watchEdges = () => {
     if (win.isDestroyed()) return;
     const away = !win.isVisible() || win.isMinimized() || isFullscreen();
@@ -2174,16 +2185,21 @@ const createWindow = () => {
       cursor.x < left + PEEK_ZONE_INSIDE &&
       cursor.y >= Math.max(top, content.y + (addressOnTop() ? pageTop : 0)) &&
       cursor.y <= bottom;
+    // The strip of frame above the page; where the page itself reaches the
+    // screen's top (a maximized window), only the screen's very top edge,
+    // so a site's own search box or menu up there stays the site's.
     const alongTopEdge =
       cursor.y >= top - 2 &&
-      cursor.y < top + PAGE_INSET &&
+      cursor.y < Math.max(content.y + PAGE_INSET, top + 2) &&
       cursor.x >= content.x + pageLeft &&
       cursor.x <= right + 2;
     if (alongLeftEdge && windowState.sidebarCollapsed && !peeking) {
       debug('left edge reached: peek');
       showPeek();
     }
-    if (alongTopEdge && !topBarShown) {
+    if (!alongTopEdge || topBarShown) topEdgeSince = 0;
+    else if (!topEdgeSince) topEdgeSince = Date.now();
+    else if (Date.now() - topEdgeSince >= TOP_BAR_DWELL_MS) {
       debug('top edge reached: top bar');
       revealTopBar(true);
     }

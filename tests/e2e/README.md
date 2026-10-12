@@ -57,6 +57,7 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `restore`     | Back from minimized: the page on screen (and Firn's own layers) drawn again, pages out of sight left alone |
 | `splitpin`    | Leaving a split view by pinning a tab or adding it to Basecamp: only the tab you're on stays on the page |
 | `updatestatus` | Settings > Updates: the version and where updates are, "Check for updates", "Restart now" once a new version is ready (pretended), and a copy that can't update itself saying why |
+| `topedge` | The top edge (Windows/Linux, "In the sidebar"): a site's own search box at the very top keeps its clicks (no top bar), a flick past the edge brings nothing, resting at the very top brings the bar, and a setting changing as it slides away doesn't leave it behind |
 
 `site/` is a tiny test website the checks visit (served on this computer
 only). `cdp.cjs`, `playwright.cjs` and `warp.py` are small helpers.
