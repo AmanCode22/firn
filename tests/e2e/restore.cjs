@@ -1,7 +1,8 @@
 // Back from being minimized, Firn draws what's on screen again: the page
 // (which could stay blank until something changed, a known Electron
 // problem on Windows) and its own layers, once right away and once the
-// window has settled.
+// window has settled, nudging the page's size by a pixel (a redraw alone
+// isn't always enough).
 const { _electron } = require('./playwright.cjs');
 const ROOT = require('path').resolve(__dirname, '../..');
 const { execSync } = require('child_process');
@@ -58,6 +59,31 @@ const check = (n, ok, x = '') => {
     ([u]) => u.startsWith('http://127.0.0.1') && !u.includes('red.html'),
   );
   check('...but not pages that are out of sight', hidden.length === 0);
+
+  // A redraw alone isn't always enough on Windows: the page is also made a
+  // pixel shorter for a moment, then put back exactly.
+  const heights = await app.evaluate(async ({ BrowserWindow }) => {
+    const view = BrowserWindow.getAllWindows()[0].contentView.children.find(
+      (v) => v.webContents?.getURL().includes('red.html'),
+    );
+    const seen = [view.getBounds().height];
+    BrowserWindow.getAllWindows()[0].emit('restore');
+    for (let i = 0; i < 40; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+      const h = view.getBounds().height;
+      if (h !== seen.at(-1)) seen.push(h);
+    }
+    await new Promise((r) => setTimeout(r, 300));
+    seen.push(view.getBounds().height);
+    return seen;
+  });
+  check(
+    '...its size nudged by a pixel and put back',
+    heights.length >= 3 &&
+      heights[1] === heights[0] - 1 &&
+      heights.at(-1) === heights[0],
+    heights.join(' → '),
+  );
 
   console.log(
     `\n${results.filter(Boolean).length}/${results.length} checks passed`,

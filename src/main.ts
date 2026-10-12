@@ -1416,6 +1416,15 @@ const createWindow = () => {
     const from = pageTop;
     const start = Date.now();
     clearInterval(topGlide);
+    // Minimized (e.g. by the top bar's own button, which then slides away),
+    // nothing is seen and Windows reports odd sizes: just go there.
+    if (win.isMinimized()) {
+      pageTop = to;
+      tabs.holdLayout(null);
+      tabs.layout();
+      layoutLayers();
+      return;
+    }
     // Hold the site's layout at the taller of the two sizes for the glide;
     // the part that doesn't fit is simply hidden under the bottom edge.
     const { width, height } = tabs.pageBoundsFor(Math.min(from, to));

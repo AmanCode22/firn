@@ -524,8 +524,25 @@ class ElectronPage implements Page {
     else this.web.reload();
   }
 
+  // Asking the page to draw again isn't always enough on Windows: after
+  // the window comes back from the taskbar, a page can stay missing
+  // altogether (not even its white background) until its size changes.
+  // So it's made a pixel shorter for a moment, then put back (unless
+  // something else moved it meanwhile).
   repaint() {
-    if (!this.web.isDestroyed()) this.web.invalidate();
+    if (this.web.isDestroyed()) return;
+    this.web.invalidate();
+    const bounds = this.view.getBounds();
+    if (!this.view.getVisible() || bounds.width < 2 || bounds.height < 2)
+      return;
+    const nudged = { ...bounds, height: bounds.height - 1 };
+    this.view.setBounds(nudged);
+    setTimeout(() => {
+      if (this.web.isDestroyed()) return;
+      const now = this.view.getBounds();
+      if (now.height === nudged.height && now.width === nudged.width)
+        this.view.setBounds(bounds);
+    }, 50);
   }
 
   stop() {

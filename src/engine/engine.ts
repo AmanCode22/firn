@@ -100,7 +100,8 @@ export interface Page {
   forward(): void;
   reload(ignoreCache?: boolean): void;
   // Draws the page again (after the window comes back from being
-  // minimized, when a page can otherwise stay blank).
+  // minimized, when a page can otherwise stay blank), nudging its size if
+  // the engine needs that.
   repaint(): void;
   stop(): void;
   focus(): void;
