@@ -494,8 +494,10 @@ export class TabManager {
   // Puts tabs that haven't been on screen for a while to sleep, freeing
   // the memory their pages use: each keeps its place, name, icon, and
   // back/forward history, and loads again when it's next shown (load).
-  // Never a tab on screen, one playing sound or muted, one paused from the
-  // mini player, or one with text a person typed still in it. How many.
+  // Never a Basecamp tile (the few sites a person lives in, ready all day
+  // once opened), a tab on screen, one playing sound or muted, one paused
+  // from the mini player, or one with text a person typed still in it.
+  // How many.
   async sleepOld(isOld: (lastSeen: number) => boolean) {
     const now = Date.now();
     for (const id of this.onScreen) {
@@ -505,6 +507,7 @@ export class TabManager {
     const canSleep = (id: string, entry: Entry) =>
       this.entries.get(id) === entry &&
       entry.loaded &&
+      !entry.tab.basecamp &&
       id !== this.activeId &&
       !this.onScreen.includes(id) &&
       !entry.page.audible &&

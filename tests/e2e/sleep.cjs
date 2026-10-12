@@ -1,8 +1,8 @@
 // Sleeping tabs: a tab not on screen for a while (an hour; 3 seconds here,
 // FIRN_SLEEP_TEST=1) is put to sleep: its page is set aside, its row rests
 // quieter, and clicking it brings the page back with its history. Never
-// the tab on screen, one playing sound, or one with text a person typed
-// still in it; a tab just left stays awake for the full time.
+// a Basecamp tile, the tab on screen, one playing sound, or one with text
+// a person typed still in it; a tab just left stays awake for the full time.
 const { _electron } = require('./playwright.cjs');
 const path = require('path');
 const ROOT = path.resolve(__dirname, '../..');
@@ -45,6 +45,10 @@ const check = (n, ok, x = '') => {
   const quiet = (title) =>
     row(title).evaluate((el) => el.classList.contains('is-unloaded'));
 
+  // A Basecamp tile, opened once.
+  await open('gray.html');
+  await ui.evaluate(() => window.firn.runAction('basecamp'));
+  await wait(800);
   // A tab with some history: Red, then Blue in the same tab.
   await open('red.html');
   await app.evaluate(({ webContents }) =>
@@ -72,6 +76,7 @@ const check = (n, ok, x = '') => {
     'the tab on screen stays awake',
     (await awake('green.html')) && !(await quiet('Green site')),
   );
+  check('a Basecamp tile, once opened, stays awake', await awake('gray.html'));
   check(
     'a tab playing sound stays awake',
     (await awake('sound.html')) && !(await quiet('Sound')),

@@ -8,7 +8,7 @@ A tab you haven't looked at for an hour now goes to sleep, giving back the memor
 
 ### Better
 
-- **Sleeping tabs.** After an hour out of sight, a tab rests a little quieter in the sidebar and stops using memory. Click it and it loads again, on the same page, with Back still working. A tab playing sound, one you've muted or paused, and one where you've started typing something stay awake.
+- **Sleeping tabs.** After an hour out of sight, a tab rests a little quieter in the sidebar and stops using memory. Click it and it loads again, on the same page, with Back still working. Your Basecamp sites never sleep, so once you've opened them they're ready all day. A tab playing sound, one you've muted or paused, and one where you've started typing something stay awake too.
 
 ### Fixed
 
