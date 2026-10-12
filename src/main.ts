@@ -3461,6 +3461,20 @@ const createWindow = () => {
       daysUsed,
     });
   });
+  // Back from being minimized, a page could stay blank until something on
+  // screen changed (a known Electron problem): draw what's on screen again,
+  // once right away and once the window has settled.
+  const repaintAll = () => {
+    if (win.isDestroyed()) return;
+    tabs.repaint();
+    for (const web of uiContents) if (!web.isDestroyed()) web.invalidate();
+  };
+  const repaintSoon = () => {
+    repaintAll();
+    setTimeout(repaintAll, 150);
+  };
+  win.on('restore', repaintSoon);
+  win.on('show', repaintSoon);
   for (const event of ['resize', 'move', 'maximize', 'unmaximize'] as const)
     win.on(event as 'resize', () => saver.schedule());
   win.on('close', () => {
