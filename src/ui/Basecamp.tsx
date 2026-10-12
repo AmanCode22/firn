@@ -1,4 +1,5 @@
 import {
+  memo,
   useLayoutEffect,
   useRef,
   useState,
@@ -10,7 +11,13 @@ import { useIconColor } from './iconColor';
 import { useFollowPointer } from './followPointer';
 import { carry, dragOverPage } from './splitDrag';
 import { layerShown } from './quietWhenHidden';
-import { TabIcon, TabSound, tabTitle } from './TabList';
+import {
+  sameRowProps,
+  TabIcon,
+  TabSound,
+  tabTitle,
+  useSteady,
+} from './TabList';
 
 // Basecamp: a grid of favorite sites at the top of the sidebar, the same in
 // every space (at most 12). Closing one (middle-click) unloads it rather
@@ -269,6 +276,7 @@ export function Basecamp({
     : pending?.signature === signature
       ? pending.offsets
       : null;
+  const tileDown = useSteady(onPointerDown);
   return (
     <div className="basecamp">
       <div
@@ -286,7 +294,7 @@ export function Basecamp({
               carriedAway={drag?.carried === true && drag.id === tab.id}
               returning={returning === tab.id}
               offset={offset}
-              onPointerDown={(e) => onPointerDown(e, tab.id)}
+              onPointerDown={tileDown}
             />
           );
         })}
@@ -295,14 +303,14 @@ export function Basecamp({
   );
 }
 
-function BasecampTile({
+const BasecampTile = memo(function BasecampTile({
   tab,
   active,
   dragged,
   carriedAway,
   returning,
   offset,
-  ...handlers
+  onPointerDown,
 }: {
   tab: TabView;
   active: boolean;
@@ -311,7 +319,7 @@ function BasecampTile({
   carriedAway: boolean;
   returning: boolean;
   offset?: Spot;
-  onPointerDown: (e: ReactPointerEvent) => void;
+  onPointerDown: (e: ReactPointerEvent, id: string) => void;
 }) {
   // The active tile is tinted with its icon's own color.
   const color = useIconColor(tab.favicon);
@@ -339,7 +347,7 @@ function BasecampTile({
       data-tile={tab.id}
       data-testid="basecamp-tile"
       title={tabTitle(tab)}
-      {...handlers}
+      onPointerDown={(e) => onPointerDown(e, tab.id)}
       onAuxClick={(e) => {
         if (e.button === 1) window.firn.closeTab(tab.id);
       }}
@@ -354,7 +362,7 @@ function BasecampTile({
       <TabSound tab={tab} badge />
     </button>
   );
-}
+}, sameRowProps);
 
 // The grid's tiles, in order.
 function tileElements(grid: HTMLElement) {
