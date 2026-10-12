@@ -49,7 +49,13 @@ import { isLiquidGlass, pageRadius } from './frame';
 import { cleanSettings, loadSettings, saveSettings } from './settings';
 import { isSpaceIcon, SPACE_ICON_NAMES, toSpaceIcon } from './spaceIcons';
 import { BASECAMP_MAX, TabManager } from './tabs';
-import { startUpdates } from './updates';
+import {
+  checkForUpdates,
+  installUpdate,
+  onUpdateState,
+  startUpdates,
+  updateState,
+} from './updates';
 import { DEMO, demoBounds, installDemoHooks, useDemoProfile } from './demo';
 import { macMenuTemplate } from './menu';
 import { matchShortcut, menuAccelerator } from './shortcuts';
@@ -464,6 +470,21 @@ const createWindow = () => {
     trafficLightPosition: LIGHTS_IN_SIDEBAR,
     webPreferences: UI_WEB_PREFERENCES,
   });
+  // Windows: pinning Firn to the taskbar while it runs would remember this
+  // version's own folder (app-0.7.2\Firn.exe), which the next update
+  // leaves behind, so the pin kept opening the old version. Pins point to
+  // the installer's small launcher instead, which always opens the newest.
+  const launcher = path.join(
+    path.dirname(path.dirname(process.execPath)),
+    'Firn.exe',
+  );
+  if (process.platform === 'win32' && app.isPackaged && fs.existsSync(launcher))
+    win.setAppDetails({
+      appId: 'com.squirrel.firn.Firn',
+      relaunchCommand: `"${launcher}"`,
+      relaunchDisplayName: 'Firn',
+      appIconPath: launcher,
+    });
 
   let spaces = usableSpaces(saved?.spaces);
   const windowState: WindowState = {
@@ -1571,6 +1592,7 @@ const createWindow = () => {
     settings,
     downloadsFolder: downloadsFolder(),
     version: app.getVersion(),
+    updates: updateState(),
     safeBrowsingAvailable: safeBrowsing.available,
     defaultBrowser,
   });
@@ -2907,6 +2929,10 @@ const createWindow = () => {
       sitePermissions.forgetAll();
       sendNav();
     },
+    // Settings > Updates: "Check for updates", and "Restart now" once a new
+    // version is ready.
+    'updates:check': () => checkForUpdates(),
+    'updates:install': () => installUpdate(),
     'firn:menu': () =>
       Menu.buildFromTemplate([
         {
@@ -3615,6 +3641,11 @@ const createWindow = () => {
     clearTimeout(tidyTimer);
     clearInterval(tidyEvery);
   });
+  // Settings shows where updates are (checking, up to date, ready...).
+  const stopUpdateState = onUpdateState(() =>
+    send('settings:state', settingsState()),
+  );
+  win.on('closed', stopUpdateState);
   console.log(
     savedTabs.length
       ? `[Firn] Restored ${savedTabs.length} tab(s) from ${sessionPath()}`

@@ -4,6 +4,7 @@ import type {
   ArchivedTab,
   CarryTab,
   CommandAction,
+  UpdateState,
   FindResult,
   SplitHandleState,
   HistoryEntry,
@@ -1606,6 +1607,7 @@ function SettingsPanel({ state }: { state: SettingsState | null }) {
                 </button>
               </div>
             </section>
+            <UpdatesGroup version={state.version} updates={state.updates} />
           </div>
         )}
         <footer className="sheet-footer">
@@ -1614,6 +1616,64 @@ function SettingsPanel({ state }: { state: SettingsState | null }) {
         </footer>
       </div>
     </div>
+  );
+}
+
+// Settings > Updates: where Firn's automatic updates are, a way to check
+// now, and, once a new version is ready, to restart into it.
+function UpdatesGroup({
+  version,
+  updates,
+}: {
+  version: string;
+  updates: UpdateState;
+}) {
+  const at = (time?: number) =>
+    time
+      ? new Date(time).toLocaleTimeString([], {
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : '';
+  const status: Record<UpdateState['status'], string> = {
+    off: updates.reason ?? '',
+    idle: 'Firn checks for new versions on its own.',
+    checking: 'Checking for updates…',
+    'up-to-date': `Up to date · checked at ${at(updates.checkedAt)}`,
+    downloading: 'Getting the new version…',
+    ready: 'A new version is ready. Restart Firn to use it.',
+    error: 'Couldn’t check just now. Firn will try again later.',
+  };
+  const busy =
+    updates.status === 'checking' || updates.status === 'downloading';
+  return (
+    <section className="settings-group" data-testid="updates">
+      <h3>Updates</h3>
+      <div className="settings-row">
+        <div className="settings-label">
+          <span>Firn {version}</span>
+          <small data-testid="update-status">{status[updates.status]}</small>
+        </div>
+        {updates.status === 'ready' ? (
+          <button
+            className="sheet-button"
+            onClick={() => window.firn.installUpdate()}
+          >
+            Restart now
+          </button>
+        ) : (
+          updates.status !== 'off' && (
+            <button
+              className="sheet-button"
+              disabled={busy}
+              onClick={() => window.firn.checkForUpdates()}
+            >
+              {busy ? 'Checking…' : 'Check for updates'}
+            </button>
+          )
+        )}
+      </div>
+    </section>
   );
 }
 
