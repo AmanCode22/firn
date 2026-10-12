@@ -1,5 +1,15 @@
 # What's new in Firn
 
+## Firn 0.7.5
+
+**Watch your downloads land.**
+
+Clicking Download now shows you where your file went: a small Firn flake drifts from where you clicked down to the bottom of the sidebar, and the download settles in with a soft glow.
+
+### Better
+
+- **Downloads you can follow.** A Firn flake carries each download from the page to the sidebar, the download rises into place with a soft wash of your space's color, and a gentle ring marks the moment it's finished. With "reduce motion" on, it simply fades in.
+
 ## Firn 0.7.4
 
 **Tabs you're not using now rest, so Firn stays light.**
