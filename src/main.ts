@@ -32,6 +32,7 @@ import { AdBlocker } from './adblock';
 import {
   askToBeDefault,
   defaultBrowserState,
+  isWebFile,
   linksFromArguments,
   registerWindowsBrowser,
   unregisterWindowsBrowser,
@@ -3618,7 +3619,7 @@ app.on('open-url', (event, url) => {
   if (/^https?:\/\//i.test(url)) receiveLinks([url]);
 });
 app.on('open-file', (event, file) => {
-  if (!/\.html?$/i.test(file)) return;
+  if (!isWebFile(file)) return;
   event.preventDefault();
   receiveLinks([pathToFileURL(file).href]);
 });

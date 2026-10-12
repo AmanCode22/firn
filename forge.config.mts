@@ -71,7 +71,20 @@ const config: ForgeConfig = {
           CFBundleTypeName: 'Web page',
           CFBundleTypeRole: 'Viewer',
           LSHandlerRank: 'Alternate',
-          LSItemContentTypes: ['public.html'],
+          LSItemContentTypes: ['public.html', 'public.xhtml'],
+        },
+        // Offered in "Open With" too (as Chrome is), never taking over.
+        {
+          CFBundleTypeName: 'PDF document',
+          CFBundleTypeRole: 'Viewer',
+          LSHandlerRank: 'Alternate',
+          LSItemContentTypes: ['com.adobe.pdf'],
+        },
+        {
+          CFBundleTypeName: 'Image',
+          CFBundleTypeRole: 'Viewer',
+          LSHandlerRank: 'Alternate',
+          LSItemContentTypes: ['public.svg-image', 'org.webmproject.webp'],
         },
       ],
     },
