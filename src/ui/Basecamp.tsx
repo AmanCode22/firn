@@ -78,6 +78,19 @@ export function Basecamp({
   activeTabId: string | null;
 }) {
   const gridRef = useRef<HTMLDivElement>(null);
+  // The grid's width, for spreading the tiles evenly over the rows.
+  const [gridWidth, setGridWidth] = useState(0);
+  const hasTiles = tabs.length > 0;
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    setGridWidth(grid.clientWidth);
+    const watch = new ResizeObserver(([entry]) =>
+      setGridWidth(entry.contentRect.width),
+    );
+    watch.observe(grid);
+    return () => watch.disconnect();
+  }, [hasTiles]);
   const dragRef = useRef<Drag | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   // After a drop, tiles stay where they were dropped until the new order
@@ -283,6 +296,9 @@ export function Basecamp({
       <div
         ref={gridRef}
         className={`basecamp-grid ${drag?.active ? 'is-dragging' : ''}`}
+        style={{
+          gridTemplateColumns: `repeat(${evenColumns(tabs.length, gridWidth)}, 1fr)`,
+        }}
       >
         {tabs.map((tab) => {
           const offset = offsets?.get(tab.id);
@@ -380,4 +396,20 @@ function spotsOf(grid: HTMLElement | null) {
     spots.set(el.dataset.tile!, { x: r.left - box.left, y: r.top - box.top });
   }
   return spots;
+}
+
+// Basecamp's tiles are spread as evenly as the rows allow: as many rows as
+// the width needs, then the tiles shared out over them. With room for 4
+// across: 4 tiles make one row, 5 make 3 + 2, 6 make 3 + 3, 7 make 4 + 3,
+// and 9 make three rows of 3.
+const TILE_MIN = 52; // as narrow as a tile gets (px)
+const TILE_GAP = 6; // as in .basecamp-grid
+export function evenColumns(count: number, width: number) {
+  if (count <= 1) return 1;
+  const fit = Math.max(
+    1,
+    Math.floor((width + TILE_GAP) / (TILE_MIN + TILE_GAP)),
+  );
+  const rows = Math.ceil(count / fit);
+  return Math.ceil(count / rows);
 }

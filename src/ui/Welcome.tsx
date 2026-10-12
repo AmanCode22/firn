@@ -8,7 +8,9 @@ import { SpaceIcon } from './SpaceIcon';
 const ALL_STEPS = [
   'hello',
   'address',
+  'search',
   'space',
+  'sidebar',
   'basecamp',
   'default',
   'tips',
@@ -128,8 +130,12 @@ export function Welcome({
           <div className="welcome-looks" role="radiogroup">
             {(
               [
-                ['sidebar', 'In the sidebar', 'More room for the page.'],
-                ['top', 'At the top', 'Where most browsers have it.'],
+                [
+                  'sidebar',
+                  'In the sidebar',
+                  'Everything in one calm place, with more room for the page.',
+                ],
+                ['top', 'At the top', 'A bar across the top of the window.'],
               ] as const
             ).map(([value, label, note]) => (
               <button
@@ -143,6 +149,35 @@ export function Welcome({
                 }
               >
                 <LookPicture top={value === 'top'} />
+                <strong>{label}</strong>
+                <small>{note}</small>
+              </button>
+            ))}
+          </div>
+        </>
+      );
+      break;
+    case 'search':
+      body = (
+        <>
+          <h1>Which search do you like?</h1>
+          <p>
+            What you type in the address bar searches here. More choices are in
+            Settings.
+          </p>
+          <div className="welcome-engines" role="radiogroup">
+            {WELCOME_ENGINES.map(([value, label, note]) => (
+              <button
+                key={value}
+                role="radio"
+                aria-checked={settings?.searchEngine === value}
+                className={`welcome-look welcome-engine${settings?.searchEngine === value ? ' is-on' : ''}`}
+                data-testid="welcome-engine"
+                style={{ '--accent': accent } as React.CSSProperties}
+                onClick={() =>
+                  window.firn.updateSettings({ searchEngine: value })
+                }
+              >
                 <strong>{label}</strong>
                 <small>{note}</small>
               </button>
@@ -215,13 +250,42 @@ export function Welcome({
         </>
       );
       break;
+    case 'sidebar':
+      body = (
+        <>
+          <h1>How your sidebar works</h1>
+          <div className="welcome-guide" data-testid="welcome-guide">
+            <SidebarPicture accent={accent} />
+            <ul>
+              <li className="is-basecamp">
+                <strong>Basecamp</strong>
+                <span>Your everyday sites, the same in every space.</span>
+              </li>
+              <li className="is-pinned">
+                <strong>Pinned tabs</strong>
+                <span>Sites that belong to this space, kept for good.</span>
+              </li>
+              <li className="is-tabs">
+                <strong>Tabs</strong>
+                <span>
+                  Everything else. Tabs you're done with tidy themselves away.
+                </span>
+              </li>
+            </ul>
+          </div>
+          <p className="welcome-guide-tip">
+            Right-click any tab to add it to Basecamp or pin it.
+          </p>
+        </>
+      );
+      break;
     case 'basecamp':
       body = (
         <>
-          <h1>Pick your everyday sites</h1>
+          <h1>Start your Basecamp</h1>
           <p>
-            They stay at the top of the sidebar in every space, one click away.
-            Choose a few, or none.
+            Pick a few sites you use every day, or none. You can add more
+            anytime: right-click a tab and choose Add to Basecamp.
           </p>
           <div className="welcome-sites">
             {BASECAMP_SUGGESTIONS.map((site) => {
@@ -389,6 +453,68 @@ export function Welcome({
         Skip setup
       </button>
     </div>
+  );
+}
+
+// The search step's choices; more are in Settings.
+const WELCOME_ENGINES = [
+  ['google', 'Google', 'The search most people know.'],
+  ['duckduckgo', 'DuckDuckGo', "Doesn't keep track of your searches."],
+  ['bing', 'Bing', "Microsoft's search."],
+] as const;
+
+// The sidebar, drawn simply for the welcome: Basecamp's tiles at the top
+// (in the space's color), two pinned tabs, a soft line, and everyday tabs.
+// Its three parts line up with the words beside it (.welcome-guide).
+function SidebarPicture({ accent }: { accent: string }) {
+  const tile = (x: number, y: number) => (
+    <rect
+      key={`${x} ${y}`}
+      className="guide-tile"
+      x={x}
+      y={y}
+      width="22"
+      height="22"
+      rx="6"
+    />
+  );
+  const row = (y: number, width: number, pin = false) => (
+    <g key={y}>
+      <circle className="guide-dot" cx="20" cy={y + 5} r="3.5" />
+      <rect
+        className={pin ? 'guide-row is-pinned' : 'guide-row'}
+        x="29"
+        y={y + 1.5}
+        width={width}
+        height="7"
+        rx="3.5"
+      />
+    </g>
+  );
+  return (
+    <svg
+      className="guide-picture"
+      viewBox="0 0 104 200"
+      style={{ '--accent': accent } as React.CSSProperties}
+      aria-hidden
+    >
+      <rect
+        className="look-frame"
+        x="0"
+        y="0"
+        width="104"
+        height="200"
+        rx="12"
+      />
+      {[12, 40, 68].map((x) => tile(x, 16))}
+      {[12, 40].map((x) => tile(x, 44))}
+      {row(86, 54, true)}
+      {row(104, 44, true)}
+      <rect className="guide-line" x="12" y="126" width="80" height="1" />
+      {row(140, 58)}
+      {row(158, 40)}
+      {row(176, 50)}
+    </svg>
   );
 }
 

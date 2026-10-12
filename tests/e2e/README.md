@@ -60,6 +60,7 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `topedge` | The top edge (Windows/Linux, "In the sidebar"): a site's own search box at the very top keeps its clicks (no top bar), a flick past the edge brings nothing, resting at the very top brings the bar, and a setting changing as it slides away doesn't leave it behind |
 | `sleep` | Sleeping tabs (pretended: 3 seconds): a tab not on screen for a while is set aside and rests quieter; the tab on screen, one playing sound, and one with typed text stay awake; clicking a sleeping tab brings it back with its history; a tab just left stays awake the full time |
 | `downloadfx` | A download's small moments in the sidebar: the new row rises in with a wash of color and a soft ring, the file settles in when done, a very long name keeps the row (and its ×) inside the sidebar, and rows already there at start are simply there |
+| `useragent` | Websites see Firn as plain Chrome (no "Firn" or "Electron" in the browser's name), both what pages read and what they're sent |
 
 `site/` is a tiny test website the checks visit (served on this computer
 only). `cdp.cjs`, `playwright.cjs` and `warp.py` are small helpers.

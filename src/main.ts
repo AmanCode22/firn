@@ -44,7 +44,12 @@ import { iconLinksFromHtml, pickIcon } from './favicon';
 import type { PermissionKind, PermissionRequest } from './engine/engine';
 import { parseKey, PERMISSION_WORDING, SitePermissions } from './permissions';
 import { History } from './history';
-import { searchUrl, setSearchEngine } from './url';
+import {
+  SEARCH_ENGINES,
+  searchUrl,
+  setSearchEngine,
+  type SearchEngine,
+} from './url';
 import { isLiquidGlass, pageRadius } from './frame';
 import { cleanSettings, loadSettings, saveSettings } from './settings';
 import { isSpaceIcon, SPACE_ICON_NAMES, toSpaceIcon } from './spaceIcons';
@@ -124,7 +129,9 @@ if (process.platform === 'win32' && !started) {
     );
 }
 
-const HOME_URL = 'https://duckduckgo.com';
+// The first tab on a fresh start: the chosen search engine's front page.
+const homeUrl = (engine: SearchEngine) =>
+  new URL(SEARCH_ENGINES[engine].url).origin;
 // History: Ctrl+H on Windows and Linux; Cmd+Y on a Mac, like Safari and
 // Chrome there (Cmd+H hides the app on a Mac).
 
@@ -3703,7 +3710,7 @@ const createWindow = () => {
       : tabs.recentIds()[0];
     if (activeId) tabs.activate(activeId);
   } else if (!pendingLinks.length) {
-    tabs.create(HOME_URL);
+    tabs.create(homeUrl(settings.searchEngine));
   }
 
   // Links from other apps (Firn as the default browser): new tabs in this
@@ -3728,6 +3735,15 @@ if (process.platform === 'win32')
     'disable-features',
     'CalculateNativeWinOcclusion',
   );
+
+// Websites see Firn as the Chrome it's built on, like other Chromium
+// browsers (Edge, Brave, Arc) do: Electron's own name adds "Firn/…" and
+// "Electron/…", and some sites (Microsoft's among them) then act as if
+// they're inside an app, turning things off. A plain Chrome name is also
+// one more way Firn doesn't stand out.
+app.userAgentFallback = app.userAgentFallback
+  .replace(/ Firn\/\S+/i, '')
+  .replace(/ Electron\/\S+/, '');
 
 // Only one Firn runs at a time. Opening it again brings the existing window
 // forward instead, so two copies can never overwrite each other's session.

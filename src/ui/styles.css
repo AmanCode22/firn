@@ -1218,9 +1218,9 @@ button {
 
 .basecamp-grid {
   display: grid;
-  /* Pins share each row evenly and wrap once tiles would get narrower than
-     this (so 1 pin fills the row, 2 split it, ... about 4 per row at the
-     default sidebar width, more when it's wider). */
+  /* How many tiles a row holds is worked out in Basecamp.tsx
+     (evenColumns): the rows as even as they can be, each tile at least
+     52px wide (about 4 per row at the default sidebar width). Until then: */
   grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
   gap: 6px;
 }
@@ -3746,6 +3746,85 @@ button {
 
 .look-pill.is-address {
   fill: var(--fl-pill);
+}
+
+/* Search: three choices side by side (more in Settings). */
+.welcome-engines {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.welcome-engine strong {
+  margin-top: 0;
+}
+
+/* How the sidebar works: a small drawing, its three parts lined up with
+   the words beside them (each row as tall as its part of the drawing). */
+.welcome-guide {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  margin-top: 22px;
+}
+
+.guide-picture {
+  flex-shrink: 0;
+  width: 104px;
+  height: 200px;
+}
+
+.guide-tile {
+  fill: color-mix(in srgb, var(--accent) 34%, var(--fl-tile));
+}
+
+.guide-row,
+.guide-dot {
+  fill: var(--fl-pill);
+}
+
+.guide-row.is-pinned {
+  fill: color-mix(in srgb, var(--fl-pill) 70%, var(--text-faint));
+}
+
+.guide-line {
+  fill: var(--fl-line);
+}
+
+.welcome-guide ul {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.welcome-guide li {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.welcome-guide li strong {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.welcome-guide li.is-basecamp,
+.welcome-guide li.is-tabs {
+  height: 74px;
+}
+
+.welcome-guide li.is-pinned {
+  height: 52px;
+}
+
+.welcome-body .welcome-guide-tip {
+  margin-top: 26px;
 }
 
 /* First space: name, color, icon. */

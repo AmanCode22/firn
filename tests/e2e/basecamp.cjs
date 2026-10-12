@@ -179,6 +179,35 @@ const check = (n, ok, x = '') => {
     front.join(',') === 'Gray,Green,Blue,Red',
     front.join(','),
   );
+  // The rows as even as they can be: 4 tiles in one row, then 5 as 3 + 2
+  // and 6 as 3 + 3 (not 4 + 1 and 4 + 2).
+  const rows = () =>
+    ui.evaluate(() => {
+      const counts = new Map();
+      for (const t of document.querySelectorAll('.basecamp-tile')) {
+        const top = Math.round(t.getBoundingClientRect().top);
+        counts.set(top, (counts.get(top) ?? 0) + 1);
+      }
+      return [...counts.values()].join('+');
+    });
+  const four = await rows();
+  const more = [];
+  for (const color of ['mix', 'dark']) {
+    await ui.click('.new-tab');
+    await wait(300);
+    await fl.keyboard.type(`127.0.0.1:8765/${color}.html`);
+    await fl.keyboard.press('Enter');
+    await wait(1200);
+    await ui.evaluate(() => window.firn.runAction('basecamp'));
+    await wait(600);
+    more.push(await rows());
+  }
+  check(
+    'tiles share their rows evenly: 4 in one row, 5 as 3 + 2, 6 as 3 + 3',
+    four === '4' && more[0] === '3+2' && more[1] === '3+3',
+    `${four}, ${more.join(', ')}`,
+  );
+
   console.log(
     `\n${results.filter(Boolean).length}/${results.length} checks passed`,
   );

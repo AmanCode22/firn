@@ -144,7 +144,7 @@ const check = (n, ok, x = '') => {
   const heading = () =>
     wf.evaluate(() => document.querySelector('.welcome h1')?.textContent);
   const seen = [];
-  for (let i = 0; i < 8 && (await heading()) !== 'Open links in Firn?'; i++) {
+  for (let i = 0; i < 10 && (await heading()) !== 'Open links in Firn?'; i++) {
     seen.push(await heading());
     await wf.click('.welcome-next');
     await wait(500);
@@ -153,10 +153,10 @@ const check = (n, ok, x = '') => {
     () => document.querySelectorAll('.welcome-dots span').length,
   );
   check(
-    'welcome: "Open links in Firn?" comes after the everyday sites',
+    'welcome: "Open links in Firn?" comes after Basecamp',
     (await heading()) === 'Open links in Firn?' &&
-      seen.at(-1) === 'Pick your everyday sites' &&
-      dots === 6,
+      seen.at(-1) === 'Start your Basecamp' &&
+      dots === 8,
     `${seen.join(' > ')}; ${dots} dots`,
   );
   const shot = (name) =>
