@@ -783,6 +783,12 @@ export class TabManager {
       const next =
         others.find((other) => this.entries.get(other)!.loaded) ?? others[0];
       if (next) this.activate(next);
+      // Nothing else to show: the empty page, rather than loading it again.
+      else {
+        this.hideOnScreen();
+        this.activeId = null;
+        this.emitNav();
+      }
     }
     if (!entry.loaded && !wasActive) return;
     // Swap in a fresh, empty page.
