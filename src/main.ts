@@ -3872,9 +3872,12 @@ if (process.platform === 'win32')
 // "Electron/…", and some sites (Microsoft's among them) then act as if
 // they're inside an app, turning things off. A plain Chrome name is also
 // one more way Firn doesn't stand out.
+// Real Chrome also says only its main version ("Chrome/152.0.0.0", not
+// "Chrome/152.0.7977.130"), so Firn does the same.
 app.userAgentFallback = app.userAgentFallback
   .replace(/ Firn\/\S+/i, '')
-  .replace(/ Electron\/\S+/, '');
+  .replace(/ Electron\/\S+/, '')
+  .replace(/Chrome\/(\d+)[\d.]*/, 'Chrome/$1.0.0.0');
 
 // Only one Firn runs at a time. Opening it again brings the existing window
 // forward instead, so two copies can never overwrite each other's session.
