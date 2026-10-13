@@ -2426,7 +2426,13 @@ const createWindow = () => {
             addToBasecamp,
             ...moveToSpace,
             { type: 'separator' },
-            { label: 'Unload tab', click: () => tabs.close(id) },
+            // Resting already: the next step is taking it away (as its ×).
+            tab.loaded
+              ? { label: 'Unload tab', click: () => tabs.close(id) }
+              : {
+                  label: 'Remove pinned tab',
+                  click: () => tabs.removePin(id),
+                },
           ]
         : [
             ...splitItems,
@@ -2463,6 +2469,14 @@ const createWindow = () => {
 
   const sendSpaces = () =>
     send('spaces:state', { spaces, activeSpaceId: windowState.activeSpaceId });
+
+  // Reopens the last closed tab; a removed pinned tab goes back to its own
+  // space, so the window switches there first.
+  const reopenClosed = () => {
+    const space = tabs.nextClosedSpace;
+    if (space) switchSpace(space);
+    tabs.reopenClosed();
+  };
 
   const switchSpace = (id: string) => {
     if (id === windowState.activeSpaceId) return;
@@ -2633,7 +2647,7 @@ const createWindow = () => {
         if (id) tabs.close(id);
         break;
       case 'reopen':
-        tabs.reopenClosed();
+        reopenClosed();
         break;
       case 'separate':
         if (id) tabs.unsplit(id);
@@ -2802,6 +2816,9 @@ const createWindow = () => {
     },
     'tabs:close': (_sender, id) => {
       if (typeof id === 'string') tabs.close(id);
+    },
+    'tabs:remove-pin': (_sender, id) => {
+      if (typeof id === 'string') tabs.removePin(id);
     },
     'tabs:toggle-mute': (_sender, id) => {
       if (typeof id === 'string') tabs.toggleMute(id);
@@ -3448,7 +3465,7 @@ const createWindow = () => {
         tabs.zoom(0);
         break;
       case 'reopen-tab':
-        tabs.reopenClosed();
+        reopenClosed();
         break;
       case 'new-tab':
         openCommandBar();
@@ -3539,7 +3556,7 @@ const createWindow = () => {
         macMenuTemplate({
           settings: live(() => openSettings()),
           newTab: live(() => openCommandBar()),
-          reopenClosedTab: live(() => tabs.reopenClosed()),
+          reopenClosedTab: live(() => reopenClosed()),
           closeTab: live(() => {
             if (tabs.activeTabId) tabs.close(tabs.activeTabId);
           }),

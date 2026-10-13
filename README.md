@@ -21,7 +21,7 @@ Tabs live in a sidebar on the left, top to bottom. **Ctrl+S** (Cmd+S on a Mac) h
 
 - **Basecamp** is the grid of your everyday sites at the top, the same in every space (up to 12). Drag a tab up into it, or right-click a tab and choose **Add to Basecamp**; drag a tile down into your tabs to take it out.
 - **Pinned tabs** belong to one space and sit under its name. Pin a tab with **Ctrl+D**, by right-clicking it, or by dragging it above the line.
-- Basecamp and pinned tabs remember their *home* address. Closing one doesn't remove it: it rests, a little quieter, until you click it again. Right-click for **Go back to home**.
+- Basecamp and pinned tabs remember their *home* address. Closing one doesn't remove it: it rests, a little quieter, until you click it again. To take a resting pinned tab away, move the mouse off it and back, and click its **×** (**Ctrl+Shift+T** brings it back). Right-click for **Go back to home**.
 - **Tabs tidy themselves away.** Everyday tabs you haven't looked at for a while (7 days of using Firn, by default; Settings > Tabs) move into the **Archive**, the little box at the bottom right of the sidebar. Click it to bring any of them back. Closing a tab yourself still closes it.
 - **Tabs you're not using rest.** A tab you haven't looked at for an hour goes to sleep and gives back its memory. It keeps its place and loads again, on the same page, when you click it. Basecamp sites, tabs playing sound, and pages where you've started typing stay awake.
 

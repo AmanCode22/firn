@@ -67,13 +67,25 @@ export interface SavedWindow extends WindowState {
   maximized?: boolean;
 }
 
+// A closed tab, for reopening (Ctrl+Shift+T): its address, or for a removed
+// pinned tab, enough to put the pin back where it was.
+export type ClosedTab = string | ClosedPin;
+export interface ClosedPin {
+  url: string;
+  spaceId: string;
+  homeUrl: string;
+  title: string;
+  favicon: string;
+  index: number; // among the space's pinned tabs
+}
+
 export interface SavedSession {
   version: number;
   spaces: Space[];
   tabs: SavedTab[];
   splits?: SplitGroup[];
   window: SavedWindow;
-  recentlyClosed: string[];
+  recentlyClosed: ClosedTab[];
   // Zoom remembered per site (host → zoom factor; 1 = 100% isn't stored).
   siteZoom?: Record<string, number>;
   // Tabs tidied away into the Archive (newest first), and the days Firn
@@ -496,6 +508,8 @@ export interface FirnBridge {
   lightsAt(x: number, y: number): void;
   setSidebarWidth(width: number): void;
   closeTab(id: string): void;
+  // Takes a pinned tab away for good (its × once it rests).
+  removePin(id: string): void;
   // The speaker on a tab playing sound: mute it, or turn it back on.
   toggleMute(id: string): void;
   // The mini player's pause / play button.

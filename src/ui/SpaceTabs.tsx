@@ -499,8 +499,13 @@ const TabRow = memo(function TabRow({
   onPointerDown: (e: ReactPointerEvent, rowId: string) => void;
 }) {
   const pinned = kind === 'pinned';
+  // A resting pinned tab offers an × to remove it, but only once the mouse
+  // has left the row and come back after unloading it, so a double-click
+  // on the unload button can't take the pin away by accident.
+  const [armed, setArmed] = useState(true);
   return (
     <div
+      onPointerLeave={() => setArmed(true)}
       className={[
         'tab',
         active && 'is-active',
@@ -536,9 +541,23 @@ const TabRow = memo(function TabRow({
           className="tab-close"
           title={pinned ? 'Unload tab' : 'Close tab'}
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => window.firn.closeTab(tab.id)}
+          onClick={() => {
+            if (pinned) setArmed(false);
+            window.firn.closeTab(tab.id);
+          }}
         >
           {pinned ? <UnloadIcon /> : <CloseIcon />}
+        </button>
+      )}
+      {pinned && !tab.loaded && armed && (
+        <button
+          className="tab-close"
+          data-testid="remove-pin"
+          title="Remove pinned tab"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => window.firn.removePin(tab.id)}
+        >
+          <CloseIcon />
         </button>
       )}
     </div>

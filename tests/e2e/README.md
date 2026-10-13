@@ -62,6 +62,7 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `downloadfx` | A download's small moments in the sidebar: the new row rises in with a wash of color and a soft ring, the file settles in when done, a very long name keeps the row (and its ×) inside the sidebar, and rows already there at start are simply there |
 | `useragent` | Websites see Firn as plain Chrome (no "Firn" or "Electron" in the browser's name), both what pages read and what they're sent |
 | `basecampdrag` | Dragging between Basecamp and the tabs: a tab dragged up opens a spot in Basecamp and joins it; a tile dragged down opens a gap and becomes an everyday tab, or a pinned tab above the divider |
+| `pinclose`  | Closing a pinned tab: the first click unloads it; once it rests (mouse away and back), an × removes it; Ctrl+Shift+T puts it back in its old place |
 
 `site/` is a tiny test website the checks visit (served on this computer
 only). `cdp.cjs`, `playwright.cjs` and `warp.py` are small helpers.

@@ -75,6 +75,7 @@ const bridge: FirnBridge = {
   lightsAt: (x, y) => ipcRenderer.send('lights:at', x, y),
   setSidebarWidth: (width) => ipcRenderer.send('sidebar:width', width),
   closeTab: (id) => ipcRenderer.send('tabs:close', id),
+  removePin: (id) => ipcRenderer.send('tabs:remove-pin', id),
   toggleMute: (id) => ipcRenderer.send('tabs:toggle-mute', id),
   togglePlaying: (id) => ipcRenderer.send('tabs:toggle-playing', id),
   dragToSplit: (id, x) => ipcRenderer.send('tabs:drag-to-split', id, x),
