@@ -319,19 +319,29 @@ export class ElectronEngine implements PageEngine {
         // Firn's own panels).
         if (details.resourceType !== 'mainFrame') {
           const page = web && this.pages.has(web) ? web : null;
-          const cancel =
-            !!page &&
-            !!this.requestBlocker?.(
-              details.url,
-              details.resourceType,
-              page.getURL(),
-            );
+          let cancel = false;
+          // (Every request needs an answer, or it waits forever: one the
+          // blocker trips over loads as usual.)
+          try {
+            cancel =
+              !!page &&
+              !!this.requestBlocker?.(
+                details.url,
+                details.resourceType,
+                page.getURL(),
+              );
+          } catch {
+            cancel = false;
+          }
           return callback(cancel ? { cancel: true } : {});
         }
         // Firn's own panels aren't checked.
         if (web && !this.pages.has(web) && this.isOwnUi(web))
           return callback({});
-        Promise.resolve(check(details.url))
+        // (A check that fails, even before it's under way, lets the page
+        // load, as a failed list lookup does.)
+        Promise.resolve()
+          .then(() => check(details.url))
           .catch(() => null)
           .then((threat) => {
             if (!threat) return callback({});
