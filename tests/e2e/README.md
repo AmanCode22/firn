@@ -42,7 +42,7 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `basecamp`     | Basecamp: dragging tiles to reorder them                              |
 | `whatsnew`     | What's new: after an update, from the menus, never on a fresh install |
 | `adblock`      | Blocking ads and trackers, "Allow ads on this site", the switch       |
-| `defaultbrowser` | Links from other apps open as tabs; the Settings row where it applies |
+| `defaultbrowser` | Links from other apps open as tabs (also after `--`, as Windows passes them, where nothing can pass as a setting); the Settings row where it applies |
 | `tooltips`     | Firn's own hover labels, in the sidebar and the top bar               |
 | `sound`        | The speaker on tabs playing sound: muting and unmuting               |
 | `player`       | The mini player: shown for sound off screen, pause and play, going there |
@@ -68,6 +68,8 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `paneltint` | The command bar, Settings, and other panels take a faint touch of the space's color (the picked result a soft wash); another space's color changes them |
 | `fullscreen` | A page going fullscreen fills the screen and leaves it with the page, or when its tab is closed while fullscreen |
 | `glides` | Two glides at once (hiding the sidebar while the address bar moves to the top): the site keeps one layout until both end, then fits |
+| `unreadable` | A damaged saved file (the session, history) is kept aside as a copy, not overwritten; Firn starts fresh |
+| `shutdown` | Windows shutting down (pretended): the session is saved at once |
 
 `site/` is a tiny test website the checks visit (served on this computer
 only). `cdp.cjs`, `playwright.cjs` and `warp.py` are small helpers.

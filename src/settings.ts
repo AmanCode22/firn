@@ -6,6 +6,7 @@ import path from 'node:path';
 import { SEARCH_ENGINES, type SearchEngine } from './url';
 import { ARCHIVE_CHOICES, type ArchiveAfter } from './archive';
 import type { Settings } from './types';
+import { keepUnreadable } from './unreadable';
 
 export const DEFAULT_SETTINGS: Settings = {
   searchEngine: 'google',
@@ -24,7 +25,8 @@ export function loadSettings(file: string): Settings {
   try {
     const data = JSON.parse(fs.readFileSync(file, 'utf8'));
     return cleanSettings(data, DEFAULT_SETTINGS);
-  } catch {
+  } catch (error) {
+    keepUnreadable(file, error);
     return { ...DEFAULT_SETTINGS };
   }
 }

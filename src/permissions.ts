@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { PermissionKind } from './engine/engine';
 import { SaveScheduler } from './store';
+import { keepUnreadable } from './unreadable';
 
 export type Decision = 'allow' | 'block';
 
@@ -97,8 +98,10 @@ export class SitePermissions {
           if (value === 'allow' || value === 'block') clean[key] = value;
         this.sites.set(origin, clean);
       }
-    } catch {
-      // Nothing decided yet (or an unreadable file): start fresh.
+    } catch (error) {
+      // Nothing decided yet, or an unreadable file: start fresh (the
+      // unreadable one kept aside).
+      keepUnreadable(this.file, error);
     }
   }
 
