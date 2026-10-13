@@ -400,6 +400,8 @@ class ElectronPage implements Page {
   private view: WebContentsView;
 
   private events: PageEvents;
+  // Whether the page is filling the window (a video's fullscreen button).
+  private fullscreen = false;
 
   constructor(
     private win: BrowserWindow,
@@ -658,6 +660,14 @@ class ElectronPage implements Page {
   }
 
   destroy() {
+    // A page closed while fullscreen never leaves it: Electron, which put
+    // the window into fullscreen for it, doesn't take it back out. Do that
+    // here, and tell the tabs it left.
+    if (this.fullscreen) {
+      this.fullscreen = false;
+      if (!this.win.isDestroyed()) this.win.setFullScreen(false);
+      this.events.onFullscreen(false);
+    }
     if (!this.win.isDestroyed())
       this.win.contentView.removeChildView(this.view);
     if (!this.web.isDestroyed()) this.web.close();
@@ -798,7 +808,13 @@ class ElectronPage implements Page {
     web.on('zoom-changed', (_event, direction) =>
       events().onZoomRequest(direction),
     );
-    web.on('enter-html-full-screen', () => events().onFullscreen(true));
-    web.on('leave-html-full-screen', () => events().onFullscreen(false));
+    web.on('enter-html-full-screen', () => {
+      this.fullscreen = true;
+      events().onFullscreen(true);
+    });
+    web.on('leave-html-full-screen', () => {
+      this.fullscreen = false;
+      events().onFullscreen(false);
+    });
   }
 }

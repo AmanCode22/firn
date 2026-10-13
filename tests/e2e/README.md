@@ -62,10 +62,11 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `downloadfx` | A download's small moments in the sidebar: the new row rises in with a wash of color and a soft ring, the file settles in when done, a very long name keeps the row (and its ×) inside the sidebar, and rows already there at start are simply there |
 | `useragent` | Websites see Firn as plain Chrome (no "Firn" or "Electron" in the browser's name), both what pages read and what they're sent |
 | `basecampdrag` | Dragging between Basecamp and the tabs: a tab dragged up opens a spot in Basecamp and joins it; a tile dragged down opens a gap and becomes an everyday tab, or a pinned tab above the divider |
-| `pinclose`  | Closing a pinned tab: the first click unloads it; once it rests (mouse away and back), an × removes it; Ctrl+Shift+T puts it back in its old place |
+| `pinclose`  | Closing a pinned tab: the first click unloads it; once it rests (mouse away and back), an × removes it; Ctrl+Shift+T puts it back in its old place; unloading a space's only tab leaves the empty page |
 | `appregion` | A website can't mark part of itself as a "drag the window here" area (the Azure portal's top bar did); Firn's own sidebar top row still can |
 | `soundgaps` | A podcast going quiet between sentences keeps its speaker and mini player; pausing it takes them away at once |
 | `paneltint` | The command bar, Settings, and other panels take a faint touch of the space's color (the picked result a soft wash); another space's color changes them |
+| `fullscreen` | A page going fullscreen fills the screen and leaves it with the page, or when its tab is closed while fullscreen |
 
 `site/` is a tiny test website the checks visit (served on this computer
 only). `cdp.cjs`, `playwright.cjs` and `warp.py` are small helpers.
