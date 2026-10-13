@@ -1272,6 +1272,7 @@ const createWindow = () => {
   const openWelcome = () => {
     welcomePending = false;
     showOverlay({ mode: 'welcome', openId: ++commandOpenId });
+    refreshDefaultBrowser();
   };
   const finishWelcome = (urls: unknown) => {
     if (overlay.mode !== 'welcome') return;
@@ -1457,6 +1458,7 @@ const createWindow = () => {
 
   const openSettings = () => {
     showOverlay({ mode: 'settings', openId: ++commandOpenId });
+    refreshDefaultBrowser();
   };
 
   const openFind = () => {
@@ -1682,7 +1684,15 @@ const createWindow = () => {
       send('settings:state', settingsState());
     });
   refreshDefaultBrowser();
-  win.on('focus', refreshDefaultBrowser);
+  // Only Settings and the welcome show it, so it's looked at again (a
+  // registry query on Windows) when one opens, or when Firn comes back to
+  // the front while one is open (perhaps from Windows' Default apps), not
+  // on every focus.
+  const showsDefaultBrowser = () =>
+    overlay.mode === 'settings' || overlay.mode === 'welcome';
+  win.on('focus', () => {
+    if (showsDefaultBrowser()) refreshDefaultBrowser();
+  });
   const settingsState = () => ({
     settings,
     downloadsFolder: downloadsFolder(),
