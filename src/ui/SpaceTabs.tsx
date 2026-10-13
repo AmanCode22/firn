@@ -186,7 +186,11 @@ export function SpaceTabs({
         const list = listRef.current;
         if (!list) return null;
         const box = list.getBoundingClientRect();
-        if (x < box.left || x > box.right || y < box.top) return null;
+        // Past the sidebar's edge is the page (split view). Anywhere else
+        // below Basecamp counts, the space's name above the list too (it
+        // lands at the very top), so there's no dead strip in between.
+        if (x > box.right) return null;
+        y = Math.max(y, box.top);
         measured.current = itemElements(list).map((el) => ({
           key: el.dataset.item!,
           top: topOf(el, list),
@@ -548,6 +552,16 @@ const TabRow = memo(function TabRow({
         >
           {pinned ? <UnloadIcon /> : <CloseIcon />}
         </button>
+      )}
+      {pinned && !tab.loaded && !armed && (
+        // Just unloaded: the button's spot stays, empty, until the mouse
+        // leaves, so the second click of a double-click doesn't land on the
+        // row and open the pin again.
+        <span
+          className="tab-close is-spent"
+          aria-hidden
+          onPointerDown={(e) => e.stopPropagation()}
+        />
       )}
       {pinned && !tab.loaded && armed && (
         <button

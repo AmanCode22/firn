@@ -1661,6 +1661,13 @@ button {
   color: var(--text);
 }
 
+/* A pinned tab just unloaded: the button's spot stays, empty, until the
+   mouse leaves (src/ui/SpaceTabs.tsx). */
+.tab-close.is-spent,
+.tab-close.is-spent:hover {
+  background: transparent;
+}
+
 /* The speaker on a tab playing sound (src/ui/TabList.tsx): at the end of
    the row, always showing while there's sound. On hover it steps aside for
    the close button. */

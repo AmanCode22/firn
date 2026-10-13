@@ -78,6 +78,10 @@ const check = (n, ok, x = '') => {
     p.length === 2 && p[0].title.includes('Red') && p[0].resting,
     JSON.stringify(p),
   );
+  // (Its second click must not land on the row and open the pin again.)
+  await wait(1200);
+  p = await pins();
+  check('...and it stays resting', p[0]?.resting, JSON.stringify(p));
   check('...and no × while the mouse is still there', !(await removeShown()));
 
   // Away and back: the × appears.
