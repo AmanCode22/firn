@@ -8,7 +8,7 @@ The welcome now shows how Firn's sidebar works, Basecamp, pinned tabs, and every
 
 ### New
 
-- **How your sidebar works.** A new welcome step draws the sidebar and explains its three parts: Basecamp for your everyday sites, pinned tabs for each space, and everyday tabs that tidy themselves away. Right-click any tab to add it to Basecamp or pin it.
+- **How your sidebar works.** A new welcome step draws the sidebar and explains its three parts: Basecamp for your everyday sites, pinned tabs for each space, and the rest of your tabs, which tidy themselves away. Right-click any tab to add it to Basecamp or pin it.
 - **Choose your search.** The welcome asks which search you like: Google, DuckDuckGo, or Bing. More choices are in Settings.
 
 ### Better
