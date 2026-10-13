@@ -1745,7 +1745,7 @@ const createWindow = () => {
   );
   // Coming back to Firn (perhaps from moving or deleting a downloaded
   // file): check the list again.
-  win.on('focus', () => send('downloads:state', downloads.all()));
+  win.on('focus', () => send('downloads:state', downloads.all(true)));
   const tabs = new TabManager(engine, {
     spaceId: windowState.activeSpaceId,
     pageRadius: PAGE_RADIUS,
@@ -3197,7 +3197,7 @@ const createWindow = () => {
       if (download?.state === 'done' && fs.existsSync(download.path))
         void shell.openPath(download.path);
       // Gone since (moved or deleted): show that instead.
-      else send('downloads:state', downloads.all());
+      else send('downloads:state', downloads.all(true));
     },
     'downloads:show': (_sender, id) => {
       const download = typeof id === 'string' ? downloads.get(id) : undefined;

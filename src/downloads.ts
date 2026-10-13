@@ -63,16 +63,29 @@ export class Downloads {
       if (state === 'completed')
         download.received = download.total || download.received;
       download.endedAt = Date.now();
-      this.changed();
+      this.changed(true);
     });
-    this.changed();
+    this.changed(true);
   }
 
-  // The list for the UI, newest first.
-  all(): Download[] {
-    return this.list.map((d) =>
-      d.state === 'done' ? { ...d, missing: !fs.existsSync(d.path) } : d,
-    );
+  // Whether each finished file was still there when last looked at.
+  private missing = new Map<string, boolean>();
+
+  // The list for the UI, newest first. Finished files are looked for on
+  // disk the first time, and again with `recheck` (Firn coming back to the
+  // front, perhaps after one was moved or deleted, or a download starting
+  // or ending), not on every update (a download in progress updates four
+  // times a second).
+  all(recheck = false): Download[] {
+    return this.list.map((d) => {
+      if (d.state !== 'done') return d;
+      let missing = this.missing.get(d.id);
+      if (recheck || missing === undefined) {
+        missing = !fs.existsSync(d.path);
+        this.missing.set(d.id, missing);
+      }
+      return { ...d, missing };
+    });
   }
 
   get(id: string) {
@@ -88,6 +101,7 @@ export class Downloads {
   remove(id: string) {
     this.cancel(id);
     this.list = this.list.filter((d) => d.id !== id);
+    this.missing.delete(id);
     this.changed();
   }
 
@@ -123,8 +137,8 @@ export class Downloads {
     }, PROGRESS_MS);
   }
 
-  private changed() {
-    this.onChange(this.all());
+  private changed(recheck = false) {
+    this.onChange(this.all(recheck));
     this.saver.schedule();
   }
 
