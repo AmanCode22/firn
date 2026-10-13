@@ -150,6 +150,68 @@ const check = (n, ok, x = '') => {
     rows.join(' / '),
   );
 
+  // Switching spaces mid-drag (as Ctrl+2 would) cancels the drag: the
+  // carried tab goes, and nothing is left waiting for it.
+  await ui.evaluate(() => window.firn.runAction('new-space', ''));
+  await wait(600);
+  await ui.keyboard.press('Enter');
+  await wait(400);
+  await ui.locator('[data-testid="space"]').first().click();
+  await wait(1000);
+  const carriedNow = () =>
+    fl.evaluate(() => !!document.querySelector('.carried-tab:not(.is-let-go)'));
+  const pageRow = ui.locator('.space-tabs .tab[data-kind="everyday"]', {
+    hasText: 'Page',
+  });
+  const pb = await pageRow.boundingBox();
+  await ui.mouse.move(pb.x + pb.width / 2, pb.y + pb.height / 2);
+  await ui.mouse.down();
+  await ui.mouse.move(pb.x + pb.width / 2 + 60, pb.y + pb.height / 2, {
+    steps: 4,
+  });
+  await ui.mouse.move(area.right, area.middle, { steps: 8 });
+  await wait(500);
+  const carrying = await carriedNow();
+  await ui.evaluate(() =>
+    document
+      .querySelector('[data-testid="space"][data-space="New space"]')
+      .click(),
+  );
+  await wait(1200);
+  check(
+    'switching spaces mid-drag: the carried tab goes',
+    carrying && !(await carriedNow()),
+    `${carrying} → ${await carriedNow()}`,
+  );
+  check(
+    '...and the new space shows its empty page, nothing left over it',
+    (await names()) === '' &&
+      (await ui.locator('.empty-page').count()) === 1 &&
+      !(await ui.evaluate(() => !!document.querySelector('.drop-card'))),
+    await names(),
+  );
+  await ui.mouse.up();
+  await wait(600);
+  const floatingShown = () =>
+    app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()[0].contentView.children.some(
+        (v) =>
+          v.webContents?.getURL().includes('view=floating') && v.getVisible(),
+      ),
+    );
+  check(
+    '...and letting go afterwards leaves nothing over the window',
+    (await names()) === '' && !(await floatingShown()),
+    `${await names()} floating shown: ${await floatingShown()}`,
+  );
+  // Back in the first space: the tab is in its place, not still carried.
+  await ui.locator('[data-testid="space"]').first().click();
+  await wait(1000);
+  check(
+    '...and back in its space, the tab is in its place, not carried',
+    !(await carriedNow()) && (await pageRow.count()) === 1,
+  );
+
   console.log(
     `\n${results.filter(Boolean).length}/${results.length} checks passed`,
   );

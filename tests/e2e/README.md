@@ -55,7 +55,7 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `installer`   | Windows installer events (plain logic, no Windows needed): a Start menu entry only on install, nothing on updates, Start menu and desktop shortcuts removed on uninstall, and Firn listed among the browsers |
 | `mactips`     | Hover labels on a Mac (pretended): the system's own tooltips (titles kept, no label of Firn's), a tab's name only when cut off, the top bar's buttons too |
 | `restore`     | Back from minimized: the page on screen (and Firn's own layers) drawn again, pages out of sight left alone |
-| `splitpin`    | Leaving a split view by pinning a tab or adding it to Basecamp: only the tab you're on stays on the page |
+| `splitpin`    | Leaving a split view by pinning a tab or adding it to Basecamp: only the tab you're on stays on the page; a link from a split's side opens below its row; switching spaces mid-drag cancels the drag |
 | `updatestatus` | Settings > Updates: the version and where updates are, "Check for updates", "Restart now" once a new version is ready (pretended), and a copy that can't update itself saying why |
 | `topedge` | The top edge (Windows/Linux, "In the sidebar"): a site's own search box at the very top keeps its clicks (no top bar), a flick past the edge brings nothing, resting at the very top brings the bar, and a setting changing as it slides away doesn't leave it behind |
 | `sleep` | Sleeping tabs (pretended: 3 seconds): a tab not on screen for a while is set aside and rests quieter; the tab on screen, one playing sound, and one with typed text stay awake; clicking a sleeping tab brings it back with its history; a tab just left stays awake the full time |
