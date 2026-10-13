@@ -107,6 +107,49 @@ const check = (n, ok, x = '') => {
     `${before} → ${afterBasecamp}`,
   );
 
+  // A link opened from a split view's left side lands below the split
+  // row, never between its two sides (which broke the row apart).
+  await open('gray.html');
+  await open('mix.html');
+  await dragIn('Gray');
+  check('a new split view', (await names()) === 'mix|gray', await names());
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0]
+      .contentView.children.find(
+        (v) => v.webContents && v.webContents.getURL().endsWith('/mix.html'),
+      )
+      .webContents.executeJavaScript(
+        "window.open('http://127.0.0.1:8765/two.html')",
+        true,
+      ),
+  );
+  await wait(1500);
+  const rows = await ui.evaluate(() =>
+    [
+      ...document.querySelectorAll(
+        '.space-tabs .split-row, .space-tabs .tab[data-kind="everyday"]:not(.split-row)',
+      ),
+    ].map((r) =>
+      r.classList.contains('split-row')
+        ? 'split:' +
+          [...r.querySelectorAll('.tab-title')]
+            .map((t) => t.textContent.split(' ')[0])
+            .join('+')
+        : r.querySelector('.tab-title').textContent.split(' ')[0],
+    ),
+  );
+  const at = rows.findIndex((r) => r.startsWith('split:'));
+  check(
+    'a link from the left side: the split row stays whole',
+    at >= 0 && /Mix/.test(rows[at]) && /Gray/.test(rows[at]),
+    rows.join(' / '),
+  );
+  check(
+    '...and the new tab sits right below it',
+    rows[at + 1] === 'Page',
+    rows.join(' / '),
+  );
+
   console.log(
     `\n${results.filter(Boolean).length}/${results.length} checks passed`,
   );

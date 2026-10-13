@@ -390,12 +390,15 @@ export class TabManager {
     };
     this.entries.set(id, entry);
     // New tabs go to the top of the everyday tabs, or right below the
-    // everyday tab they were opened from.
+    // everyday tab they were opened from (below both sides of a split
+    // view, never between them).
     const afterTab = after ? this.entries.get(after)?.tab : undefined;
     if (restore) this.order.push(id);
-    else if (afterTab && groupOf(afterTab) === EVERYDAY)
-      this.order.splice(this.order.indexOf(after!) + 1, 0, id);
-    else this.order.splice(this.groupStart(EVERYDAY), 0, id);
+    else if (afterTab && groupOf(afterTab) === EVERYDAY) {
+      const sides = this.splitOf(after!)?.tabIds ?? [after!];
+      const below = Math.max(...sides.map((side) => this.order.indexOf(side)));
+      this.order.splice(below + 1, 0, id);
+    } else this.order.splice(this.groupStart(EVERYDAY), 0, id);
     if (restore) this.keepGroupsInOrder();
     this.renumber();
 
