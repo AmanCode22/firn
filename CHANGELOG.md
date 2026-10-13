@@ -1,5 +1,20 @@
 # What's new in Firn
 
+## Firn 0.8.1
+
+**Drag your favorite sites into Basecamp.**
+
+Drag any tab up into Basecamp to keep it there, or drag a tile down into your tabs. And a pinned tab you no longer need can now be removed.
+
+### New
+
+- **Drag into and out of Basecamp.** Drag a tab up into Basecamp and a spot opens where it will land. Drag a tile down into your tabs: above the line it becomes a pinned tab, below it an everyday tab.
+- **Remove a pinned tab.** A pinned tab's button first lets it rest. Once it's resting, move the mouse away and back, and an × removes it. Changed your mind? Ctrl+Shift+T brings it back, in its old place.
+
+### Fixed
+
+- **A page staying blank after minimizing**, on Windows: Firn now puts the page back on screen the way switching tabs does.
+
 ## Firn 0.8.0
 
 **A friendlier welcome, and a Basecamp that lines up.**
