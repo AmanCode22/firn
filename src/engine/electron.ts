@@ -382,6 +382,10 @@ function wrapDownload(item: Electron.DownloadItem): EngineDownload {
   };
 }
 
+// See wire(): no part of a website moves the window.
+const NO_DRAG_CSS =
+  '*, *::before, *::after { -webkit-app-region: no-drag !important; app-region: no-drag !important; }';
+
 class ElectronPage implements Page {
   private view: WebContentsView;
 
@@ -646,6 +650,13 @@ class ElectronPage implements Page {
     const web = this.web;
     const events = () => this.events;
     web.on('dom-ready', () => {
+      // A website can't make part of itself a "drag the window here" area.
+      // Chrome ignores that setting on websites, but Electron honors it in
+      // a window without a frame, like Firn's: the Azure portal marks its
+      // top bar that way (for its own desktop app), so its search box took
+      // no clicks, and right-clicking there opened Windows' window menu.
+      // As the person's own style rule, it wins over anything a page says.
+      web.insertCSS(NO_DRAG_CSS, { cssOrigin: 'user' }).catch(() => {});
       // Firn's own floating scrollbar (src/scrollbar.ts).
       web.insertCSS(SCROLLBAR_CSS, { cssOrigin: 'user' }).catch(() => {});
       web

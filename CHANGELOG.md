@@ -9,7 +9,7 @@ Drag any tab up into Basecamp to keep it there, or drag a tile down into your ta
 ### New
 
 - **Drag into and out of Basecamp.** Drag a tab up into Basecamp and a spot opens where it will land. Drag a tile down into your tabs: above the line it becomes a pinned tab, below it an everyday tab.
-- **Remove a pinned tab.** A pinned tab's button first lets it rest. Once it's resting, move the mouse away and back, and an × removes it. Changed your mind? Ctrl+Shift+T brings it back, in its old place.
+- **Remove a pinned tab.** A pinned tab's button first lets it rest. Once it's resting, move the mouse away and back, and an × removes it. Changed your mind? Ctrl+Shift+T (⌘+Shift+T on a Mac) brings it back, in its old place.
 
 ### Fixed
 

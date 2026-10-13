@@ -63,6 +63,7 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `useragent` | Websites see Firn as plain Chrome (no "Firn" or "Electron" in the browser's name), both what pages read and what they're sent |
 | `basecampdrag` | Dragging between Basecamp and the tabs: a tab dragged up opens a spot in Basecamp and joins it; a tile dragged down opens a gap and becomes an everyday tab, or a pinned tab above the divider |
 | `pinclose`  | Closing a pinned tab: the first click unloads it; once it rests (mouse away and back), an × removes it; Ctrl+Shift+T puts it back in its old place |
+| `appregion` | A website can't mark part of itself as a "drag the window here" area (the Azure portal's top bar did); Firn's own sidebar top row still can |
 
 `site/` is a tiny test website the checks visit (served on this computer
 only). `cdp.cjs`, `playwright.cjs` and `warp.py` are small helpers.
