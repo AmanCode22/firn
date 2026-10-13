@@ -232,6 +232,43 @@ const check = (n, ok, x = '') => {
     await names(),
   );
 
+  // A panel opening mid-drag (here Settings) takes the handle away: the
+  // swap it was showing is undone, and stays undone after letting go.
+  xm('move', o.x + leftMiddle, o.y + top + 20);
+  await wait(500);
+  box = await floatingBox();
+  const grip3 = { x: box.x + 20 + 22, y: box.y + box.height / 2 };
+  xm('move', o.x + grip3.x, o.y + grip3.y);
+  await wait(200);
+  xm('down');
+  for (let i = 1; i <= 16; i++) {
+    xm(
+      'move',
+      o.x + grip3.x + ((rightHalf - grip3.x) * i) / 16,
+      o.y + grip3.y + ((area.middle - grip3.y) * i) / 16,
+    );
+    await wait(30);
+  }
+  await wait(600);
+  const previewed = await names();
+  await ui.evaluate(() => window.firn.runAction('settings', ''));
+  await wait(700);
+  const underPanel = await names();
+  xm('up');
+  await wait(300);
+  await fl.keyboard.press('Escape');
+  await wait(700);
+  check(
+    'a panel opening mid-drag: the swap shown is undone',
+    previewed === 'blue|red' && underPanel === 'red|blue',
+    `${previewed} → ${underPanel}`,
+  );
+  check(
+    '...and stays undone once the panel is closed',
+    (await names()) === 'red|blue' && !(await handle()),
+    await names(),
+  );
+
   // The ×: takes that side out; the tab stays.
   const rightMiddle = (await shownPages())[1];
   xm('move', o.x + rightMiddle.x + rightMiddle.width / 2, o.y + top + 20);

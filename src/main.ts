@@ -668,6 +668,17 @@ const createWindow = () => {
     dragging: boolean;
   } | null = null;
   let splitHandleHideTimer: ReturnType<typeof setTimeout> | undefined;
+  // Something else takes the floating layer (a panel, a prompt, a carried
+  // tab): the handle goes at once, and a swap it was showing is undone.
+  const dropSplitHandle = () => {
+    if (!splitHandle) return;
+    if (splitHandle.dragging) tabs.previewSwap(false);
+    splitHandle = null;
+    clearTimeout(splitHandleHideTimer);
+    splitHandleHideTimer = undefined;
+    floating.webContents.send('split-handle:state', { kind: 'hide' });
+  };
+
   // It comes out only once the mouse rests near there a moment (sites
   // often keep a logo, a search box, or a menu up there, and a mouse just
   // passing on its way to them shouldn't bring it out).
@@ -842,10 +853,7 @@ const createWindow = () => {
       barTip = null;
       floating.webContents.send('tip:state', { kind: 'hide' });
     }
-    if (splitHandle) {
-      splitHandle = null;
-      floating.webContents.send('split-handle:state', { kind: 'hide' });
-    }
+    dropSplitHandle();
     overlay = state;
     send('overlay:state', state);
     showLayer(floating);
@@ -2893,10 +2901,7 @@ const createWindow = () => {
           barTip = null;
           floating.webContents.send('tip:state', { kind: 'hide' });
         }
-        if (splitHandle) {
-          splitHandle = null;
-          floating.webContents.send('split-handle:state', { kind: 'hide' });
-        }
+        dropSplitHandle();
         showLayer(floating);
       }
       floating.webContents.send('carry:state', carried);
