@@ -3653,14 +3653,20 @@ const createWindow = () => {
   win.on('minimize', () => (wasMinimized = true));
   for (const event of ['resize', 'move', 'maximize', 'unmaximize'] as const)
     win.on(event as 'resize', () => saver.schedule());
-  win.on('close', () => {
+  const saveEverything = () => {
     saver.flush();
     history.flush();
     downloads.flush();
     sitePermissions.flush();
     passwords.flush();
+  };
+  win.on('close', () => {
+    saveEverything();
     safeBrowsing.stop();
   });
+  // Windows shutting down (or signing out) may end Firn without closing
+  // the window: save then too.
+  win.on('session-end', saveEverything);
 
   win.on('closed', () => {
     saver.cancel();
