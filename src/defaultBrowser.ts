@@ -81,7 +81,9 @@ const regValue = (key: string, name: string | null, value: string) => [
 function browserRegistration(): string[][] {
   const launcher = windowsLauncher();
   const icon = `"${launcher}",0`;
-  const open = `"${launcher}" "%1"`;
+  // `--`: whatever follows is only ever a link or a file, never a setting
+  // for Chromium (a crafted link can't sneak one in).
+  const open = `"${launcher}" -- "%1"`;
   const values: string[][] = [];
   const set = (key: string, name: string | null, value: string) =>
     values.push(regValue(key, name, value));
