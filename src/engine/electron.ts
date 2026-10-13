@@ -535,6 +535,16 @@ class ElectronPage implements Page {
     const bounds = this.view.getBounds();
     if (!this.view.getVisible() || bounds.width < 2 || bounds.height < 2)
       return;
+    // On Windows a redraw and a nudge weren't enough: what reliably brought
+    // the page back was a tab switch or the top bar coming down, both of
+    // which hand the page's view to the window again. So do that: hide it,
+    // put it back on the window, and show it (the caller lifts Firn's own
+    // layers back above it, in the same moment).
+    if (!this.win.isDestroyed()) {
+      this.view.setVisible(false);
+      this.win.contentView.addChildView(this.view);
+      this.view.setVisible(true);
+    }
     const nudged = { ...bounds, height: bounds.height - 1 };
     this.view.setBounds(nudged);
     setTimeout(() => {

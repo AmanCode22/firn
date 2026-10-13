@@ -15,6 +15,7 @@ import {
   type IpcMainEvent,
   type IpcMainInvokeEvent,
   type Input,
+  webContents,
   type WebContents,
 } from 'electron';
 import { execFile } from 'node:child_process';
@@ -2170,10 +2171,18 @@ const createWindow = () => {
   // than waiting for hover events, which never fire again while the pointer
   // stays pressed against the screen's edge (e.g. a maximized window).
   let edgeWatch: ReturnType<typeof setTimeout> | undefined;
+  // Set while the window is minimized; cleared once it's back and redrawn.
+  let wasMinimized = false;
+  let repaintBack = () => {};
   let topEdgeSince = 0;
   const watchEdges = () => {
     if (win.isDestroyed()) return;
-    const away = !win.isVisible() || win.isMinimized() || isFullscreen();
+    const minimized = win.isMinimized();
+    if (wasMinimized && !minimized && win.isVisible()) {
+      wasMinimized = false;
+      repaintBack();
+    }
+    const away = !win.isVisible() || minimized || isFullscreen();
     edgeWatch = setTimeout(
       watchEdges,
       away
@@ -3594,16 +3603,32 @@ const createWindow = () => {
   // screen changed (a known Electron problem): draw what's on screen again,
   // once right away and once the window has settled.
   const repaintAll = () => {
-    if (win.isDestroyed()) return;
+    if (win.isDestroyed() || win.isMinimized()) return;
+    const focused = webContents.getFocusedWebContents();
     tabs.repaint();
+    // The pages were put back on the window: lift Firn's layers above them.
+    raiseLayers();
     for (const web of uiContents) if (!web.isDestroyed()) web.invalidate();
+    if (focused && !focused.isDestroyed()) focused.focus();
   };
+  // Right away, once the window has settled, and once more a little later
+  // (Windows can still be bringing the window back on the first ones).
   const repaintSoon = () => {
     repaintAll();
     setTimeout(repaintAll, 150);
+    setTimeout(repaintAll, 500);
   };
-  win.on('restore', repaintSoon);
-  win.on('show', repaintSoon);
+  const back = () => {
+    wasMinimized = false;
+    repaintSoon();
+  };
+  repaintBack = back;
+  win.on('restore', back);
+  win.on('show', back);
+  // In case Windows brings the window back without saying so ('restore'
+  // doesn't always come for a frameless window), the edge watch, which
+  // looks once a second while minimized, notices too (see watchEdges).
+  win.on('minimize', () => (wasMinimized = true));
   for (const event of ['resize', 'move', 'maximize', 'unmaximize'] as const)
     win.on(event as 'resize', () => saver.schedule());
   win.on('close', () => {
