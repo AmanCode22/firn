@@ -12,7 +12,17 @@ export function useFollowPointer(
   const latest = useRef({ move, end });
   latest.current = { move, end };
   const stop = useRef<(() => void) | null>(null);
-  useEffect(() => () => stop.current?.(), []);
+  // Gone mid-drag (e.g. its tab's space switched away, taking the row with
+  // it): the drag ends there, cancelled, so nothing it started (a carried
+  // tab, the page making room) is left behind.
+  useEffect(
+    () => () => {
+      if (!stop.current) return;
+      stop.current();
+      latest.current.end(false);
+    },
+    [],
+  );
   return () => {
     stop.current?.();
     const onMove = (e: PointerEvent) => latest.current.move(e);

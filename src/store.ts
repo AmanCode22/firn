@@ -10,6 +10,7 @@ import path from 'node:path';
 import { app } from 'electron';
 import { BASECAMP_MAX } from './tabs';
 import type { SavedSession, SavedTab } from './types';
+import { keepUnreadable } from './unreadable';
 
 // Version 2 added Basecamp: version 1's pinned tabs (shown as a grid back
 // then) become Basecamp, which is where that grid lives now.
@@ -21,7 +22,10 @@ export const sessionPath = () =>
 export function loadSession(): SavedSession | null {
   try {
     const data = JSON.parse(fs.readFileSync(sessionPath(), 'utf8'));
-    if (!Array.isArray(data?.tabs)) return null;
+    if (!Array.isArray(data?.tabs)) {
+      keepUnreadable(sessionPath());
+      return null;
+    }
     if (data.version === 1) {
       let room = BASECAMP_MAX;
       for (const tab of data.tabs as SavedTab[]) {
@@ -32,11 +36,15 @@ export function loadSession(): SavedSession | null {
         }
       }
     } else if (data.version !== SESSION_VERSION) {
+      // (Written by a newer Firn, say: kept aside, not overwritten.)
+      keepUnreadable(sessionPath());
       return null;
     }
     return { ...data, version: SESSION_VERSION } as SavedSession;
-  } catch {
-    // No session yet (first run) or an unreadable file: start fresh.
+  } catch (error) {
+    // No session yet (first run), or an unreadable file: start fresh (the
+    // unreadable one kept aside).
+    keepUnreadable(sessionPath(), error);
     return null;
   }
 }

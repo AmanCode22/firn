@@ -86,6 +86,36 @@ const check = (n, ok, x = '') => {
     (await titles()).length === 2,
   );
 
+  // As Windows starts Firn for a link: `--` before it, so nothing after it
+  // is a setting for Chromium (here one that would make a separate Firn
+  // with its own data, which wouldn't hand the link over).
+  const fifth = spawn(
+    ELECTRON,
+    [
+      '--no-sandbox',
+      '.',
+      '--',
+      '--user-data-dir=/tmp/firn-not-this',
+      'http://127.0.0.1:8765/blue.html',
+    ],
+    { cwd: ROOT, stdio: 'ignore' },
+  );
+  const fifthExited = await Promise.race([
+    new Promise((r) => fifth.on('exit', () => r(true))),
+    wait(8000).then(() => false),
+  ]);
+  if (!fifthExited) fifth.kill();
+  await wait(1500);
+  t = await titles();
+  check(
+    'a link after "--" opens here, and a setting after it is ignored',
+    fifthExited &&
+      t.length === 3 &&
+      t.some((x) => x.title === 'Blue site' && x.active) &&
+      !require('fs').existsSync('/tmp/firn-not-this'),
+    JSON.stringify(t),
+  );
+
   // A PDF (and the like) handed over from another app opens in Firn; a
   // plain text file doesn't.
   const site = require('path').join(__dirname, 'site');
@@ -108,7 +138,7 @@ const check = (n, ok, x = '') => {
     'a PDF from another app opens in a new tab; a text file is ignored',
     urls.some((u) => u.startsWith('file://') && u.endsWith('/doc.pdf')) &&
       !urls.some((u) => u.endsWith('/notes.txt')) &&
-      (await titles()).length === 3,
+      (await titles()).length === 4,
     urls.filter((u) => u.startsWith('file://')).join(', '),
   );
 

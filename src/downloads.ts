@@ -9,6 +9,7 @@ import path from 'node:path';
 import type { EngineDownload } from './engine/engine';
 import { SaveScheduler } from './store';
 import type { Download } from './types';
+import { keepUnreadable } from './unreadable';
 
 const MAX_REMEMBERED = 30;
 // Progress is passed on at most this often.
@@ -130,7 +131,7 @@ export class Downloads {
   private load() {
     try {
       const data = JSON.parse(fs.readFileSync(this.file, 'utf8'));
-      if (!Array.isArray(data?.downloads)) return;
+      if (!Array.isArray(data?.downloads)) return keepUnreadable(this.file);
       this.list = (data.downloads as Download[])
         .filter(
           (d) => d && typeof d.id === 'string' && typeof d.path === 'string',
@@ -142,8 +143,10 @@ export class Downloads {
             ? { ...d, state: 'failed', endedAt: d.endedAt ?? Date.now() }
             : d,
         );
-    } catch {
-      // No downloads yet, or an unreadable file: start fresh.
+    } catch (error) {
+      // No downloads yet, or an unreadable file: start fresh (the
+      // unreadable one kept aside).
+      keepUnreadable(this.file, error);
     }
   }
 

@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { SaveScheduler } from './store';
 import type { SavedLogin } from './types';
+import { keepUnreadable } from './unreadable';
 
 // The encryption to use (given by the window code; see src/main.ts).
 export interface Vault {
@@ -128,7 +129,7 @@ export class PasswordStore {
   private load() {
     try {
       const data = JSON.parse(fs.readFileSync(this.file, 'utf8'));
-      if (!Array.isArray(data?.entries)) return;
+      if (!Array.isArray(data?.entries)) return keepUnreadable(this.file);
       this.entries = (data.entries as Entry[]).filter(
         (e) =>
           e &&
@@ -137,8 +138,9 @@ export class PasswordStore {
           typeof e.username === 'string' &&
           typeof e.secret === 'string',
       );
-    } catch {
-      // No saved passwords yet.
+    } catch (error) {
+      // No saved passwords yet (or an unreadable file, kept aside).
+      keepUnreadable(this.file, error);
     }
   }
 

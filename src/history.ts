@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { SaveScheduler } from './store';
 import type { HistoryEntry } from './types';
+import { keepUnreadable } from './unreadable';
 
 const MAX_ENTRIES = 5000;
 const DAY = 24 * 60 * 60 * 1000;
@@ -102,12 +103,14 @@ export class History {
   private load() {
     try {
       const data = JSON.parse(fs.readFileSync(this.file, 'utf8'));
-      if (!Array.isArray(data?.entries)) return;
+      if (!Array.isArray(data?.entries)) return keepUnreadable(this.file);
       for (const entry of data.entries as HistoryEntry[])
         if (entry && typeof entry.url === 'string')
           this.entries.set(entry.url, entry);
-    } catch {
-      // No history yet (first run) or an unreadable file: start fresh.
+    } catch (error) {
+      // No history yet (first run), or an unreadable file: start fresh (the
+      // unreadable one kept aside).
+      keepUnreadable(this.file, error);
     }
   }
 

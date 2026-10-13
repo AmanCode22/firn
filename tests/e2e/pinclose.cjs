@@ -113,6 +113,38 @@ const check = (n, ok, x = '') => {
   );
   check('...and shows it', (nav ?? '').includes('Red'), nav);
 
+  // A space whose only tab is a pin: unloading it leaves the empty page
+  // (it used to load right back up).
+  await ui.evaluate(() => window.firn.runAction('new-space'));
+  await wait(600);
+  await ui.keyboard.press('Enter');
+  await wait(400);
+  await open('mix.html');
+  await ui.evaluate(() => window.firn.runAction('pin'));
+  await wait(600);
+  await ui.evaluate(() => window.firn.runAction('close'));
+  await wait(1500);
+  p = await pins();
+  const mixShown = await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0].contentView.children.some(
+      (v) =>
+        v.webContents &&
+        v.getVisible() &&
+        v.getBounds().width > 0 &&
+        v.webContents.getURL().endsWith('/mix.html'),
+    ),
+  );
+  check(
+    'the only tab, a pin, unloaded: it rests',
+    p.length === 1 && p[0].title.includes('Mix') && p[0].resting,
+    JSON.stringify(p),
+  );
+  check('...and its page is gone from the screen', !mixShown);
+  check(
+    '...and the empty page shows instead',
+    (await ui.locator('.empty-page').count()) === 1,
+  );
+
   console.log(
     `\n${results.filter(Boolean).length}/${results.length} checks passed`,
   );

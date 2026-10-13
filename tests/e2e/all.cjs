@@ -462,6 +462,34 @@ const check = (name, ok, extra = '') => {
     (await pageX()) === 300,
     String(await pageX()),
   );
+  // A resize that loses hold of the mouse (Firn left mid-drag, say) is
+  // over: moving over the gap afterwards, no button held, resizes nothing.
+  await ui.mouse.move(296, 500);
+  await ui.mouse.down();
+  for (let i = 1; i <= 2; i++) {
+    await ui.mouse.move(296 + i * 5, 500);
+    await wait(16);
+  }
+  await ui.evaluate(() =>
+    document.querySelector('.sidebar-resizer').releasePointerCapture(1),
+  );
+  await ui.mouse.move(600, 500);
+  await ui.mouse.up();
+  await wait(300);
+  const afterLost = await pageX();
+  for (const x of [afterLost - 6, afterLost - 3, afterLost - 1]) {
+    await ui.mouse.move(x, 520);
+    await wait(30);
+  }
+  await wait(300);
+  check(
+    'a resize that lost the mouse is over: hovering the gap resizes nothing',
+    (await pageX()) === afterLost &&
+      !(await ui.evaluate(() =>
+        document.querySelector('.app').classList.contains('is-resizing'),
+      )),
+    `${afterLost} → ${await pageX()}`,
+  );
   await ui.dblclick('.sidebar-resizer');
   await wait(300);
   // final: still clickable

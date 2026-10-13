@@ -390,12 +390,15 @@ export class TabManager {
     };
     this.entries.set(id, entry);
     // New tabs go to the top of the everyday tabs, or right below the
-    // everyday tab they were opened from.
+    // everyday tab they were opened from (below both sides of a split
+    // view, never between them).
     const afterTab = after ? this.entries.get(after)?.tab : undefined;
     if (restore) this.order.push(id);
-    else if (afterTab && groupOf(afterTab) === EVERYDAY)
-      this.order.splice(this.order.indexOf(after!) + 1, 0, id);
-    else this.order.splice(this.groupStart(EVERYDAY), 0, id);
+    else if (afterTab && groupOf(afterTab) === EVERYDAY) {
+      const sides = this.splitOf(after!)?.tabIds ?? [after!];
+      const below = Math.max(...sides.map((side) => this.order.indexOf(side)));
+      this.order.splice(below + 1, 0, id);
+    } else this.order.splice(this.groupStart(EVERYDAY), 0, id);
     if (restore) this.keepGroupsInOrder();
     this.renumber();
 
@@ -780,6 +783,12 @@ export class TabManager {
       const next =
         others.find((other) => this.entries.get(other)!.loaded) ?? others[0];
       if (next) this.activate(next);
+      // Nothing else to show: the empty page, rather than loading it again.
+      else {
+        this.hideOnScreen();
+        this.activeId = null;
+        this.emitNav();
+      }
     }
     if (!entry.loaded && !wasActive) return;
     // Swap in a fresh, empty page.
@@ -1583,11 +1592,8 @@ export class TabManager {
     }
     // The site keeps the larger of the two sizes while it glides (what
     // doesn't fit is hidden), rather than re-fitting on every step.
-    page.holdLayout({
-      width: Math.max(from.width, to.width),
-      height: Math.max(from.height, to.height),
-    });
     this.glides.set(id, { page, from, to, start: Date.now() });
+    this.applyHolds();
     page.place(from, this.options.pageRadius);
     this.glideTimer ??= setInterval(() => this.stepGlides(), 8);
   }
@@ -1597,6 +1603,7 @@ export class TabManager {
       // (Its tab closed, or its page was replaced, mid-glide.)
       if (this.entries.get(id)?.page !== glide.page) {
         this.glides.delete(id);
+        this.applyHolds();
         continue;
       }
       glide.page.place(currentBounds(glide), this.options.pageRadius);
@@ -1613,7 +1620,7 @@ export class TabManager {
     if (!glide) return;
     this.glides.delete(id);
     glide.page.place(glide.to, this.options.pageRadius);
-    glide.page.holdLayout(null);
+    this.applyHolds();
   }
 
   private stopGlides() {
@@ -1627,25 +1634,74 @@ export class TabManager {
 
   // Holds the layout of the pages on screen at a fixed size while their box
   // changes (null lets them fit their box again). `size` is the whole page
-  // area's; each side of a split view gets its share. See glidePageTop in
-  // src/main.ts.
-  private heldPages: Page[] = [];
+  // area's; each side of a split view gets its share. Each glide holds for
+  // itself (`by`: the page's top edge or its left edge sliding, see
+  // glidePageTop and glidePageLeft in src/main.ts), so one ending doesn't
+  // let go of another still under way.
+  private areaHolds = new Map<
+    'top' | 'left',
+    { width: number; height: number }
+  >();
 
-  holdLayout(size: { width: number; height: number } | null) {
-    for (const page of this.heldPages) page.holdLayout(null);
-    this.heldPages = [];
+  holdLayout(
+    by: 'top' | 'left',
+    size: { width: number; height: number } | null,
+  ) {
+    if (size) this.areaHolds.set(by, size);
+    else this.areaHolds.delete(by);
+    this.applyHolds();
+  }
+
+  // The size each page's layout is held at (the largest any hold on it
+  // asks for), and the pages held now.
+  private held = new Map<Page, { width: number; height: number }>();
+
+  // Works out every hold (the page area's, and each page gliding on its
+  // own) and tells the pages whose hold changed.
+  private applyHolds() {
+    const want = new Map<Page, { width: number; height: number }>();
+    const hold = (page: Page, width: number, height: number) => {
+      const had = want.get(page);
+      want.set(page, {
+        width: Math.max(width, had?.width ?? 0),
+        height: Math.max(height, had?.height ?? 0),
+      });
+    };
     const entry = this.active;
-    if (!size || !entry || this.fullscreen) return;
-    const split = this.splitOf(entry.tab.id);
-    const area = { x: 0, y: 0, ...size };
-    const ids = split ? split.tabIds : [entry.tab.id];
-    const rects = split ? splitRects(area, split.sizes) : [area];
-    ids.forEach((id, i) => {
-      const page = this.entries.get(id)?.page;
-      if (!page) return;
-      page.holdLayout({ width: rects[i].width, height: rects[i].height });
-      this.heldPages.push(page);
-    });
+    if (entry && !this.fullscreen) {
+      const split = this.splitOf(entry.tab.id);
+      const ids = split ? split.tabIds : [entry.tab.id];
+      // At least the page area's size now: a hold taken while the other
+      // edge was still sliding may be narrower or shorter than the page.
+      const now = this.options.pageBounds();
+      for (const size of this.areaHolds.values()) {
+        const area = {
+          x: 0,
+          y: 0,
+          width: Math.max(size.width, now.width),
+          height: Math.max(size.height, now.height),
+        };
+        const rects = split ? splitRects(area, split.sizes) : [area];
+        ids.forEach((id, i) => {
+          const page = this.entries.get(id)?.page;
+          if (page) hold(page, rects[i].width, rects[i].height);
+        });
+      }
+    }
+    for (const { page, from, to } of this.glides.values())
+      hold(
+        page,
+        Math.max(from.width, to.width),
+        Math.max(from.height, to.height),
+      );
+    for (const page of this.held.keys())
+      if (!want.has(page)) page.holdLayout(null);
+    for (const [page, size] of want) {
+      const had = this.held.get(page);
+      if (had?.width !== size.width || had?.height !== size.height)
+        page.holdLayout(size);
+    }
+    this.held = want;
   }
 
   destroy() {

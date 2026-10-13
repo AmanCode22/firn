@@ -13,6 +13,14 @@ export function App() {
   const [topBarShown, setTopBarShown] = useState(false);
   const [resizing, setResizing] = useState(false);
   const resize = useRef<{ startX: number; startWidth: number } | null>(null);
+  const endResize = () => {
+    resize.current = null;
+    setResizing(false);
+  };
+  // Hidden mid-drag (Ctrl+S), the resizer is gone, and so is its drag.
+  useEffect(() => {
+    if (sidebar.collapsed) endResize();
+  }, [sidebar.collapsed]);
 
   useEffect(() => window.firn.onTopBarState(setTopBarShown), []);
 
@@ -92,13 +100,14 @@ export function App() {
           }}
           onPointerMove={(e) => {
             const r = resize.current;
-            if (r)
-              window.firn.setSidebarWidth(r.startWidth + e.clientX - r.startX);
+            if (!r) return;
+            // (The button let go where this didn't hear it.)
+            if (!(e.buttons & 1)) return endResize();
+            window.firn.setSidebarWidth(r.startWidth + e.clientX - r.startX);
           }}
-          onPointerUp={() => {
-            resize.current = null;
-            setResizing(false);
-          }}
+          // Let go, or the drag lost hold of the pointer some other way
+          // (cancelled, Firn left mid-drag): either way it's over.
+          onLostPointerCapture={endResize}
           onDoubleClick={() => window.firn.setSidebarWidth(DEFAULT_WIDTH)}
         />
       )}

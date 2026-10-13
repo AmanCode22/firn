@@ -532,11 +532,8 @@ export class SafeBrowsing {
       for (const [threat, list] of this.lists) {
         const short = Buffer.alloc(list.short.length * 4);
         list.short.forEach((n, i) => short.writeUInt32BE(n, i * 4));
-        fs.writeFileSync(this.file(`${threat}.bin`), short);
-        fs.writeFileSync(
-          this.file(`${threat}.long.json`),
-          JSON.stringify(list.long),
-        );
+        writeWhole(this.file(`${threat}.bin`), short);
+        writeWhole(this.file(`${threat}.long.json`), JSON.stringify(list.long));
         lists.push({ threat, state: this.states.get(threat) ?? '' });
       }
       const state: SavedState = {
@@ -544,11 +541,20 @@ export class SafeBrowsing {
         lists,
         nextUpdateAt: this.nextUpdateAt,
       };
-      fs.writeFileSync(this.file('state.json'), JSON.stringify(state));
+      // Last, so it only ever describes lists already saved in full.
+      writeWhole(this.file('state.json'), JSON.stringify(state));
     } catch (error) {
       this.log(`could not save lists: ${String(error)}`);
     }
   }
+}
+
+// Writes a file whole: to a temporary file first, then swapped in, so a
+// crash mid-write can't leave half a list behind.
+function writeWhole(file: string, data: string | Buffer) {
+  const temp = `${file}.tmp`;
+  fs.writeFileSync(temp, data);
+  fs.renameSync(temp, file);
 }
 
 // "593.44s" → 593.44 (Google writes durations this way).

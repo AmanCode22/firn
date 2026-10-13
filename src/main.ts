@@ -668,6 +668,17 @@ const createWindow = () => {
     dragging: boolean;
   } | null = null;
   let splitHandleHideTimer: ReturnType<typeof setTimeout> | undefined;
+  // Something else takes the floating layer (a panel, a prompt, a carried
+  // tab): the handle goes at once, and a swap it was showing is undone.
+  const dropSplitHandle = () => {
+    if (!splitHandle) return;
+    if (splitHandle.dragging) tabs.previewSwap(false);
+    splitHandle = null;
+    clearTimeout(splitHandleHideTimer);
+    splitHandleHideTimer = undefined;
+    floating.webContents.send('split-handle:state', { kind: 'hide' });
+  };
+
   // It comes out only once the mouse rests near there a moment (sites
   // often keep a logo, a search box, or a menu up there, and a mouse just
   // passing on its way to them shouldn't bring it out).
@@ -842,10 +853,7 @@ const createWindow = () => {
       barTip = null;
       floating.webContents.send('tip:state', { kind: 'hide' });
     }
-    if (splitHandle) {
-      splitHandle = null;
-      floating.webContents.send('split-handle:state', { kind: 'hide' });
-    }
+    dropSplitHandle();
     overlay = state;
     send('overlay:state', state);
     showLayer(floating);
@@ -1428,7 +1436,7 @@ const createWindow = () => {
     // nothing is seen and Windows reports odd sizes: just go there.
     if (win.isMinimized()) {
       pageTop = to;
-      tabs.holdLayout(null);
+      tabs.holdLayout('top', null);
       tabs.layout();
       layoutLayers();
       return;
@@ -1436,7 +1444,7 @@ const createWindow = () => {
     // Hold the site's layout at the taller of the two sizes for the glide;
     // the part that doesn't fit is simply hidden under the bottom edge.
     const { width, height } = tabs.pageBoundsFor(Math.min(from, to));
-    tabs.holdLayout({ width, height });
+    tabs.holdLayout('top', { width, height });
     topGlide = setInterval(() => {
       if (win.isDestroyed()) return clearInterval(topGlide);
       const t = Math.min(1, (Date.now() - start) / GLIDE_MS);
@@ -1445,7 +1453,7 @@ const createWindow = () => {
       tabs.layout();
       if (t === 1) {
         clearInterval(topGlide);
-        tabs.holdLayout(null);
+        tabs.holdLayout('top', null);
       }
       // The top bar's height follows the page edge (and the find bar, if
       // open, moves with the page).
@@ -1924,7 +1932,7 @@ const createWindow = () => {
     const start = Date.now();
     clearInterval(glide);
     const [contentWidth] = win.getContentSize();
-    tabs.holdLayout({
+    tabs.holdLayout('left', {
       width: Math.max(0, contentWidth - Math.min(from, to) - PAGE_INSET),
       height: tabs.pageBoundsFor(pageTop).height,
     });
@@ -1937,7 +1945,7 @@ const createWindow = () => {
       sendSidebar();
       if (t === 1) {
         clearInterval(glide);
-        tabs.holdLayout(null);
+        tabs.holdLayout('left', null);
       }
     }, 16);
   };
@@ -1999,7 +2007,7 @@ const createWindow = () => {
     windowState.sidebarWidth = width;
     if (!windowState.sidebarCollapsed) {
       clearInterval(glide);
-      tabs.holdLayout(null);
+      tabs.holdLayout('left', null);
       pageLeft = width;
     }
     relayout();
@@ -2893,10 +2901,7 @@ const createWindow = () => {
           barTip = null;
           floating.webContents.send('tip:state', { kind: 'hide' });
         }
-        if (splitHandle) {
-          splitHandle = null;
-          floating.webContents.send('split-handle:state', { kind: 'hide' });
-        }
+        dropSplitHandle();
         showLayer(floating);
       }
       floating.webContents.send('carry:state', carried);
@@ -3648,14 +3653,20 @@ const createWindow = () => {
   win.on('minimize', () => (wasMinimized = true));
   for (const event of ['resize', 'move', 'maximize', 'unmaximize'] as const)
     win.on(event as 'resize', () => saver.schedule());
-  win.on('close', () => {
+  const saveEverything = () => {
     saver.flush();
     history.flush();
     downloads.flush();
     sitePermissions.flush();
     passwords.flush();
+  };
+  win.on('close', () => {
+    saveEverything();
     safeBrowsing.stop();
   });
+  // Windows shutting down (or signing out) may end Firn without closing
+  // the window: save then too.
+  win.on('session-end', saveEverything);
 
   win.on('closed', () => {
     saver.cancel();
