@@ -71,6 +71,7 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `unreadable` | A damaged saved file (the session, history) is kept aside as a copy, not overwritten; Firn starts fresh |
 | `shutdown` | Windows shutting down (pretended): the session is saved at once |
 | `uiscrollbar` | A long tab list scrolls with the same soft, thin scrollbar as web pages (no arrows); a picture in `out/uiscrollbar.png` |
+| `favicon` | Favicon downloads stay small and quick: a normal icon comes back; one too big, one that never ends, or a server that never answers gives nothing, and Firn hangs up |
 
 `site/` is a tiny test website the checks visit (served on this computer
 only). `cdp.cjs`, `playwright.cjs` and `warp.py` are small helpers.

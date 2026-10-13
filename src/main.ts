@@ -307,17 +307,69 @@ function appIcon() {
   return fs.existsSync(file) ? file : undefined;
 }
 
+// Fetches `url` and reads its body, up to `max` bytes: null if it's bigger,
+// or with `keepStart`, just its first `max` bytes. Either way the download
+// is stopped there, rather than taken in whole, and it gives up after
+// FETCH_TIMEOUT_MS. Null too for an error page or a failed download.
+async function fetchCapped(
+  url: string,
+  max: number,
+  {
+    keepStart = false,
+    credentials,
+  }: {
+    keepStart?: boolean;
+    credentials?: RequestCredentials;
+  } = {},
+) {
+  const stop = new AbortController();
+  const response = await session.defaultSession.fetch(url, {
+    credentials,
+    signal: AbortSignal.any([
+      stop.signal,
+      AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    ]),
+  });
+  if (!response.ok) {
+    stop.abort();
+    return null;
+  }
+  const declared = Number(response.headers.get('content-length'));
+  if (declared > max && !keepStart) {
+    stop.abort();
+    return null;
+  }
+  const reader = response.body?.getReader();
+  const parts: Uint8Array[] = [];
+  let size = 0;
+  while (reader) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > max) {
+      stop.abort();
+      if (!keepStart) return null;
+      parts.push(value.subarray(0, value.length - (size - max)));
+      break;
+    }
+    parts.push(value);
+  }
+  return { response, body: Buffer.concat(parts) };
+}
+
+// How long a favicon or a page read for the welcome may take.
+const FETCH_TIMEOUT_MS = 8000;
+
 // Downloads a favicon and returns it as a data: URL (or null). Small images
-// only; anything else is ignored.
+// only, quickly; anything else is ignored.
 const ICON_MAX_BYTES = 512 * 1024;
 async function iconAsDataUrl(url: string): Promise<string | null> {
   if (url.startsWith('data:image/')) return url;
   if (!/^https?:\/\//i.test(url)) return null;
   try {
-    const response = await session.defaultSession.fetch(url);
-    if (!response.ok) return null;
-    const bytes = Buffer.from(await response.arrayBuffer());
-    if (bytes.length > ICON_MAX_BYTES) return null;
+    const got = await fetchCapped(url, ICON_MAX_BYTES);
+    if (!got) return null;
+    const { response, body: bytes } = got;
     const type = (response.headers.get('content-type') ?? '').split(';')[0];
     // Some sites send .ico files without an image type; Chromium sniffs it.
     const mime = type.startsWith('image/') ? type : 'image/x-icon';
@@ -331,7 +383,7 @@ async function iconAsDataUrl(url: string): Promise<string | null> {
 // one Basecamp would pick once the site is open (src/favicon.ts), from its
 // front page (read without cookies; nothing on it runs), else the
 // fallbacks listed with the site (see src/welcome.ts).
-const PAGE_MAX_CHARS = 2 * 1024 * 1024;
+const PAGE_MAX_BYTES = 2 * 1024 * 1024;
 const welcomeIcons = new Map<string, Promise<string | null>>();
 function welcomeIcon(siteUrl: string): Promise<string | null> {
   const site = BASECAMP_SUGGESTIONS.find((s) => s.url === siteUrl);
@@ -346,13 +398,15 @@ function welcomeIcon(siteUrl: string): Promise<string | null> {
         if (data) return data;
       }
       try {
-        const response = await session.defaultSession.fetch(site.url, {
+        // (Its icon links are near the top: a very big page is read only
+        // that far.)
+        const page = await fetchCapped(site.url, PAGE_MAX_BYTES, {
+          keepStart: true,
           credentials: 'omit',
-          signal: AbortSignal.timeout(8000),
         });
-        if (response.ok) {
-          const html = (await response.text()).slice(0, PAGE_MAX_CHARS);
-          const base = response.url || site.url;
+        if (page) {
+          const html = page.body.toString('utf8');
+          const base = page.response.url || site.url;
           const best = pickIcon(
             iconLinksFromHtml(html, base, dark),
             new URL('/favicon.ico', base).href,
