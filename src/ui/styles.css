@@ -1727,10 +1727,10 @@ button {
 
 .tab-sound.is-badge {
   position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 18px;
-  height: 18px;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
   margin: 0;
   border-radius: 50%;
   background: var(--tab-active);
@@ -1738,8 +1738,8 @@ button {
 }
 
 .tab-sound.is-badge svg {
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
 }
 
 .tab-sound.is-badge:hover {

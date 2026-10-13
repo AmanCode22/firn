@@ -1,6 +1,12 @@
 import { useCallback, useRef, useState } from 'react';
 import type { TabView } from '../types';
-import { GlobeIcon, MutedIcon, SoundIcon } from './icons';
+import {
+  BadgeMutedIcon,
+  BadgeSoundIcon,
+  GlobeIcon,
+  MutedIcon,
+  SoundIcon,
+} from './icons';
 
 export function TabIcon({ tab }: { tab: TabView }) {
   const [broken, setBroken] = useState<string | null>(null);
@@ -44,7 +50,17 @@ export function TabSound({ tab, badge }: { tab: TabView; badge?: boolean }) {
         window.firn.toggleMute(tab.id);
       }}
     >
-      {tab.muted ? <MutedIcon /> : <SoundIcon />}
+      {badge ? (
+        tab.muted ? (
+          <BadgeMutedIcon />
+        ) : (
+          <BadgeSoundIcon />
+        )
+      ) : tab.muted ? (
+        <MutedIcon />
+      ) : (
+        <SoundIcon />
+      )}
     </Tag>
   );
 }
