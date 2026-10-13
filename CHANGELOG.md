@@ -2,13 +2,13 @@
 
 ## Firn 0.9.1
 
-**Search the Azure portal, a steady speaker, and panels in your space's color.**
+**Panels in your space's color, and a steady speaker.**
 
-A few websites mark their top bar as a place to drag the window, meant for their own desktop apps. Firn now ignores that, so their search boxes and menus work as they do in Chrome. And the speaker on a tab now stays for as long as its podcast or song plays.
+The command bar, Settings, and Firn's other panels now take a faint touch of your space's color. The speaker on a tab stays for as long as its podcast or song plays. And a few sites whose top bar didn't respond now work as they do in Chrome.
 
 ### Fixed
 
-- **The Azure portal's search box** (and anything else in a site's top bar that wouldn't respond) now works, and right-clicking there no longer opens the window's menu.
+- **Some sites' top bars** didn't respond to clicks (a search box, for one), and right-clicking there opened the window's menu. They now work as they do in Chrome.
 - **Basecamp tiles come out more easily.** A tile leaves Basecamp as soon as you drag it past the bottom edge, and letting go just below Basecamp makes it your first pinned tab instead of sending it back.
 - **A double-click on a pinned tab's button** lets it rest, without opening it again.
 - **The speaker on a tab playing a podcast or song** stays while it plays, instead of flickering off whenever it goes quiet. The mini player stays too.
