@@ -1,5 +1,23 @@
 # What's new in Firn
 
+## Firn 0.9.1
+
+**Panels in your space's color, and a steady speaker.**
+
+The command bar, Settings, and Firn's other panels now take a faint touch of your space's color. The speaker on a tab stays for as long as its podcast or song plays. And a few sites whose top bar didn't respond now work as they do in Chrome.
+
+### Fixed
+
+- **Some sites' top bars** didn't respond to clicks (a search box, for one), and right-clicking there opened the window's menu. They now work as they do in Chrome.
+- **Basecamp tiles come out more easily.** A tile leaves Basecamp as soon as you drag it past the bottom edge, and letting go just below Basecamp makes it your first pinned tab instead of sending it back.
+- **A double-click on a pinned tab's button** lets it rest, without opening it again.
+- **The speaker on a tab playing a podcast or song** stays while it plays, instead of flickering off whenever it goes quiet. The mini player stays too.
+- **The speaker on a Basecamp tile** is clearer and sits centered in its circle.
+
+### Better
+
+- **The command bar, Settings, and other panels** take a faint touch of your space's color.
+
 ## Firn 0.9.0
 
 **Drag your favorite sites into Basecamp.**
@@ -9,7 +27,7 @@ Drag any tab up into Basecamp to keep it there, or drag a tile down into your ta
 ### New
 
 - **Drag into and out of Basecamp.** Drag a tab up into Basecamp and a spot opens where it will land. Drag a tile down into your tabs: above the line it becomes a pinned tab, below it an everyday tab.
-- **Remove a pinned tab.** A pinned tab's button first lets it rest. Once it's resting, move the mouse away and back, and an × removes it. Changed your mind? Ctrl+Shift+T brings it back, in its old place.
+- **Remove a pinned tab.** A pinned tab's button first lets it rest. Once it's resting, move the mouse away and back, and an × removes it. Changed your mind? Ctrl+Shift+T (⌘+Shift+T on a Mac) brings it back, in its old place.
 
 ### Fixed
 

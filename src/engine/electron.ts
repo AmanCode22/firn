@@ -64,12 +64,14 @@ const ICON_WORLD_ID = 1998;
 // The mini player's pause and play (src/ui/MiniPlayer.tsx): pauses every
 // video and audio element that's playing, remembering which, and later
 // plays just those again. Each call answers how many it paused or played.
+// It also counts those playing with their sound on (for the speaker on a
+// tab: see ElectronPage.audible).
 // In the page itself it runs in an isolated world (apart from the page's
 // scripts); in embedded frames (a video player inside an article) Electron
 // can only run it in the frame's own world, which is fine: it reads and
 // sends back nothing but that count.
 const MEDIA_WORLD_ID = 1997;
-const MEDIA_SCRIPT = (action: 'pause' | 'play') => `(() => {
+const MEDIA_SCRIPT = (action: 'pause' | 'play' | 'count') => `(() => {
   const key = Symbol.for('firn.paused');
   const paused = (window[key] ??= new WeakSet());
   let count = 0;
@@ -81,6 +83,14 @@ const MEDIA_SCRIPT = (action: 'pause' | 'play') => `(() => {
     } else if (${action === 'play'} && paused.has(media)) {
       paused.delete(media);
       media.play().catch(() => {});
+      count++;
+    } else if (
+      ${action === 'count'} &&
+      !media.paused &&
+      !media.ended &&
+      !media.muted &&
+      media.volume > 0
+    ) {
       count++;
     }
   }
@@ -382,6 +392,10 @@ function wrapDownload(item: Electron.DownloadItem): EngineDownload {
   };
 }
 
+// See wire(): no part of a website moves the window.
+const NO_DRAG_CSS =
+  '*, *::before, *::after { -webkit-app-region: no-drag !important; app-region: no-drag !important; }';
+
 class ElectronPage implements Page {
   private view: WebContentsView;
 
@@ -423,8 +437,16 @@ class ElectronPage implements Page {
     return this.web.navigationHistory.canGoForward();
   }
 
+  // Playing sound, as a person would say it: a podcast going quiet between
+  // sentences is still playing. Chromium only reports whether sound is
+  // coming out right now, so when it goes quiet Firn asks the page whether
+  // a video or song is still playing with its sound on (`stillPlaying`),
+  // until that one is paused or ends. Silent autoplay videos never count
+  // (nothing was heard), nor sound a page's own code stopped making.
+  private stillPlaying = false;
+
   get audible() {
-    return this.web.isCurrentlyAudible();
+    return this.web.isCurrentlyAudible() || this.stillPlaying;
   }
 
   get muted() {
@@ -444,8 +466,8 @@ class ElectronPage implements Page {
   }
 
   // Runs the media script in the page and every frame inside it; how many
-  // videos and sounds it paused or played in all.
-  private async runMedia(action: 'pause' | 'play') {
+  // videos and sounds it paused, played, or found playing in all.
+  private async runMedia(action: 'pause' | 'play' | 'count') {
     const web = this.web;
     if (web.isDestroyed()) return 0;
     const code = MEDIA_SCRIPT(action);
@@ -646,6 +668,13 @@ class ElectronPage implements Page {
     const web = this.web;
     const events = () => this.events;
     web.on('dom-ready', () => {
+      // A website can't make part of itself a "drag the window here" area.
+      // Chrome ignores that setting on websites, but Electron honors it in
+      // a window without a frame, like Firn's: the Azure portal marks its
+      // top bar that way (for its own desktop app), so its search box took
+      // no clicks, and right-clicking there opened Windows' window menu.
+      // As the person's own style rule, it wins over anything a page says.
+      web.insertCSS(NO_DRAG_CSS, { cssOrigin: 'user' }).catch(() => {});
       // Firn's own floating scrollbar (src/scrollbar.ts).
       web.insertCSS(SCROLLBAR_CSS, { cssOrigin: 'user' }).catch(() => {});
       web
@@ -663,9 +692,31 @@ class ElectronPage implements Page {
     web.on('did-navigate', update);
     web.on('did-navigate-in-page', update);
     web.on('page-title-updated', update);
-    // Sound started or stopped (Chromium waits a moment after it stops, so
-    // a pause between songs doesn't flicker).
-    web.on('audio-state-changed', update);
+    // Sound going quiet, or a video or song paused: is one still playing?
+    // (See audible.)
+    let asked = 0;
+    const askStillPlaying = async () => {
+      const ask = ++asked;
+      const playing = (await this.runMedia('count')) > 0;
+      if (ask !== asked || web.isDestroyed()) return;
+      this.stillPlaying = playing;
+      update();
+    };
+    web.on('audio-state-changed', ({ audible }) => {
+      if (audible) {
+        asked++;
+        this.stillPlaying = false;
+        update();
+      } else void askStillPlaying();
+    });
+    web.on('media-paused', () => {
+      if (this.stillPlaying) void askStillPlaying();
+    });
+    web.on('did-start-navigation', (details) => {
+      if (!details.isMainFrame || details.isSameDocument) return;
+      asked++;
+      this.stillPlaying = false;
+    });
     // Chromium reports the page's first favicon; look at all the icons the
     // page lists and pass on the best one (src/favicon.ts).
     let iconCheck = 0;

@@ -40,6 +40,8 @@ import {
 // How far the pointer must move before a press becomes a drag (so ordinary
 // clicks never turn into accidental drags).
 const DRAG_THRESHOLD = 4;
+// How far above Basecamp's bottom edge a dragged tile starts leaving it.
+const LEAVE_EARLY = 6;
 const BASECAMP_MAX = 12; // as in src/tabs.ts
 const GLIDE = { duration: 200, easing: 'cubic-bezier(0.33, 1, 0.68, 1)' };
 
@@ -240,7 +242,9 @@ export function Basecamp({
     // where a copy of it would open.
     // Down over the space's tabs: it lifts out, and the tabs open a gap
     // where it would land.
-    const gridBottom = grid.getBoundingClientRect().bottom;
+    // It lets go of Basecamp as soon as the pointer reaches its bottom edge
+    // (a little before it), so pulling a tile out doesn't feel sticky.
+    const gridBottom = grid.getBoundingClientRect().bottom - LEAVE_EARLY;
     const tabsDrop =
       e.clientY > gridBottom
         ? (tabsTarget()?.dropAt(e.clientX, e.clientY) ?? null)

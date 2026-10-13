@@ -177,6 +177,29 @@ export const MutedIcon = () => (
   </svg>
 );
 
+// The same, for the small round badge on a Basecamp tile: a solid speaker
+// (an outline goes faint that small) and a bolder wave, the pair centered
+// in the circle (the outline one sits a little left, which a circle shows).
+const BADGE_SPEAKER =
+  'M3.5 6.3h1.9l2.9-2.4c.3-.2.7 0 .7.4v7.4c0 .4-.4.6-.7.4L5.4 9.7H3.5a.8.8 0 0 1-.8-.8V7.1a.8.8 0 0 1 .8-.8Z';
+export const BadgeSoundIcon = () => (
+  <svg {...base} width={12} height={12} strokeWidth={1.7}>
+    <g transform="translate(0.25 0)">
+      <path d={BADGE_SPEAKER} fill="currentColor" stroke="none" />
+      <path d="M11 5.6a3.4 3.4 0 0 1 0 4.8" />
+    </g>
+  </svg>
+);
+
+export const BadgeMutedIcon = () => (
+  <svg {...base} width={12} height={12} strokeWidth={1.6}>
+    <g transform="translate(-0.5 0)">
+      <path d={BADGE_SPEAKER} fill="currentColor" stroke="none" />
+      <path d="m10.7 6.1 3.6 3.6M14.3 6.1l-3.6 3.6" />
+    </g>
+  </svg>
+);
+
 // The mini player's play and pause, softly rounded.
 export const PlayIcon = () => (
   <svg {...base} fill="currentColor" strokeWidth={1.2}>

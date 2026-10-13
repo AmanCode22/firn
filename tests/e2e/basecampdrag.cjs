@@ -134,6 +134,26 @@ const check = (n, ok, x = '') => {
     JSON.stringify(s),
   );
 
+  // Pulled just out of Basecamp and let go over the space's name (above
+  // the list itself): no dead strip, it lands at the top of the pins.
+  const blueNow = await center(tile('Blue'));
+  const gridBottom = await ui.evaluate(
+    () =>
+      document.querySelector('.basecamp-grid').getBoundingClientRect().bottom,
+  );
+  await ui.mouse.move(blueNow.x, blueNow.y);
+  await ui.mouse.down();
+  await ui.mouse.move(blueNow.x, gridBottom + 8, { steps: 6 });
+  await wait(300);
+  await ui.mouse.up();
+  await wait(900);
+  s = await state();
+  check(
+    'a tile let go just under Basecamp becomes the first pinned tab',
+    !s.tiles.some((t) => t.includes('Blue')) && s.pinned[0]?.includes('Blue'),
+    JSON.stringify(s),
+  );
+
   console.log(
     `\n${results.filter(Boolean).length}/${results.length} checks passed`,
   );

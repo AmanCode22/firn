@@ -47,6 +47,10 @@
   --danger-wash: rgba(176, 80, 58, 0.11);
   --pin-wash: 0.16; /* active pinned tile, tinted by its icon */
   --space-wash: 0.16; /* how strongly the space's color tints the frame */
+  /* Panels (the command bar, Settings, History...) take a faint touch of
+     the space's color, and the command bar's picked result a soft wash. */
+  --panel-tint: 7%;
+  --panel-pick: 0.13;
   --pin-edge: 0.45;
 
   color-scheme: light dark;
@@ -92,6 +96,8 @@
   --tab-active-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   --pin-wash: 0.24;
   --space-wash: 0.14;
+  --panel-tint: 10%;
+  --panel-pick: 0.2;
   --pin-edge: 0.6;
   --tab-dragged-shadow:
     0 2px 6px rgba(0, 0, 0, 0.25), 0 8px 20px rgba(0, 0, 0, 0.25);
@@ -1661,6 +1667,13 @@ button {
   color: var(--text);
 }
 
+/* A pinned tab just unloaded: the button's spot stays, empty, until the
+   mouse leaves (src/ui/SpaceTabs.tsx). */
+.tab-close.is-spent,
+.tab-close.is-spent:hover {
+  background: transparent;
+}
+
 /* The speaker on a tab playing sound (src/ui/TabList.tsx): at the end of
    the row, always showing while there's sound. On hover it steps aside for
    the close button. */
@@ -1720,10 +1733,10 @@ button {
 
 .tab-sound.is-badge {
   position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 18px;
-  height: 18px;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
   margin: 0;
   border-radius: 50%;
   background: var(--tab-active);
@@ -1731,8 +1744,8 @@ button {
 }
 
 .tab-sound.is-badge svg {
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
 }
 
 .tab-sound.is-badge:hover {
@@ -2220,6 +2233,11 @@ button {
   padding: 4px;
   border-radius: 10px;
   background: var(--page);
+  background: color-mix(
+    in srgb,
+    var(--page),
+    rgb(var(--space-rgb, 128 120 110)) var(--panel-tint)
+  );
   box-shadow:
     0 0 0 1px var(--panel-edge),
     0 4px 12px rgba(30, 20, 10, 0.14),
@@ -2412,6 +2430,11 @@ button {
 .panel {
   border-radius: 14px;
   background: var(--page);
+  background: color-mix(
+    in srgb,
+    var(--page),
+    rgb(var(--space-rgb, 128 120 110)) var(--panel-tint)
+  );
   box-shadow:
     0 0 0 1px var(--panel-edge),
     0 4px 12px rgba(30, 20, 10, 0.12),
@@ -2638,6 +2661,7 @@ button {
 
 .result.is-selected {
   background: var(--hover);
+  background: rgb(var(--space-rgb, 128 120 110) / var(--panel-pick));
 }
 
 .result-title {
