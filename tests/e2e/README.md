@@ -67,6 +67,7 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `soundgaps` | A podcast going quiet between sentences keeps its speaker and mini player; pausing it takes them away at once |
 | `paneltint` | The command bar, Settings, and other panels take a faint touch of the space's color (the picked result a soft wash); another space's color changes them |
 | `fullscreen` | A page going fullscreen fills the screen and leaves it with the page, or when its tab is closed while fullscreen |
+| `glides` | Two glides at once (hiding the sidebar while the address bar moves to the top): the site keeps one layout until both end, then fits |
 
 `site/` is a tiny test website the checks visit (served on this computer
 only). `cdp.cjs`, `playwright.cjs` and `warp.py` are small helpers.

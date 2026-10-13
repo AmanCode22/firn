@@ -1428,7 +1428,7 @@ const createWindow = () => {
     // nothing is seen and Windows reports odd sizes: just go there.
     if (win.isMinimized()) {
       pageTop = to;
-      tabs.holdLayout(null);
+      tabs.holdLayout('top', null);
       tabs.layout();
       layoutLayers();
       return;
@@ -1436,7 +1436,7 @@ const createWindow = () => {
     // Hold the site's layout at the taller of the two sizes for the glide;
     // the part that doesn't fit is simply hidden under the bottom edge.
     const { width, height } = tabs.pageBoundsFor(Math.min(from, to));
-    tabs.holdLayout({ width, height });
+    tabs.holdLayout('top', { width, height });
     topGlide = setInterval(() => {
       if (win.isDestroyed()) return clearInterval(topGlide);
       const t = Math.min(1, (Date.now() - start) / GLIDE_MS);
@@ -1445,7 +1445,7 @@ const createWindow = () => {
       tabs.layout();
       if (t === 1) {
         clearInterval(topGlide);
-        tabs.holdLayout(null);
+        tabs.holdLayout('top', null);
       }
       // The top bar's height follows the page edge (and the find bar, if
       // open, moves with the page).
@@ -1924,7 +1924,7 @@ const createWindow = () => {
     const start = Date.now();
     clearInterval(glide);
     const [contentWidth] = win.getContentSize();
-    tabs.holdLayout({
+    tabs.holdLayout('left', {
       width: Math.max(0, contentWidth - Math.min(from, to) - PAGE_INSET),
       height: tabs.pageBoundsFor(pageTop).height,
     });
@@ -1937,7 +1937,7 @@ const createWindow = () => {
       sendSidebar();
       if (t === 1) {
         clearInterval(glide);
-        tabs.holdLayout(null);
+        tabs.holdLayout('left', null);
       }
     }, 16);
   };
@@ -1999,7 +1999,7 @@ const createWindow = () => {
     windowState.sidebarWidth = width;
     if (!windowState.sidebarCollapsed) {
       clearInterval(glide);
-      tabs.holdLayout(null);
+      tabs.holdLayout('left', null);
       pageLeft = width;
     }
     relayout();
