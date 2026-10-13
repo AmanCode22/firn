@@ -1,5 +1,28 @@
 # What's new in Firn
 
+## Firn 0.9.2
+
+**Calmer scrollbars, and a steadier Firn.**
+
+A long list of tabs, Settings, and History now scroll with the same soft, thin scrollbar as web pages. This release also fixes a handful of small bugs and makes Firn more careful with your saved data.
+
+### Better
+
+- **Scrollbars.** A long list of tabs, Settings, History, and Firn's other panels scroll with a soft, thin scrollbar, like the one on web pages, instead of a gray bar with arrows.
+- **Your saved data is safer.** If Firn ever finds a saved file it can't read (your tabs and spaces, settings, passwords, or history), it keeps a copy instead of writing over it. Firn also saves everything when Windows shuts down.
+- **Lighter while downloading,** and site icons that are too big or too slow no longer hold Firn up.
+
+### Fixed
+
+- **A link opened from a split view** now opens below the split, instead of between its two halves.
+- **Closing a tab while its video was full screen** left Firn stuck in full screen.
+- **Unloading the only tab in a space** loaded it right back up. It now rests.
+- **A page could jump to the wrong width** when the sidebar and the top bar slid at the same time.
+- **Switching spaces while dragging a tab** could leave the tab stuck.
+- **Opening a panel while dragging a split view's handle** left the two halves swapped.
+- **The sidebar could keep resizing** after letting go of its edge.
+- **Links from other apps** are passed to Firn more safely on Windows.
+
 ## Firn 0.9.1
 
 **Panels in your space's color, and a steady speaker.**

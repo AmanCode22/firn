@@ -228,6 +228,22 @@ const server = http
     !(await opened()).some((o) => o.includes('big.bin')),
     JSON.stringify(await opened()),
   );
+  // The disk isn't looked at on every update, only when Firn comes back
+  // to the front (or a download starts or ends): a file deleted meanwhile
+  // shows as gone then.
+  fs.unlinkSync('/tmp/fdl/notes (1).txt');
+  await wait(1200);
+  const quiet = (await rows()).find((x) => x.name === 'notes (1).txt');
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0].emit('focus'),
+  );
+  await wait(500);
+  const back = (await rows()).find((x) => x.name === 'notes (1).txt');
+  check(
+    'coming back to Firn: a file deleted meanwhile says "Moved or deleted"',
+    quiet?.detail.startsWith('Done') && back?.detail === 'Moved or deleted',
+    `${quiet?.detail} → ${back?.detail}`,
+  );
   await ui.click('.new-tab');
   await wait(300);
   await fl.keyboard.type('downloads');
