@@ -23,6 +23,8 @@ import type {
 import { toNavigableUrl } from './url';
 import type {
   ArchivedTab,
+  ClosedPin,
+  ClosedTab,
   FindResult,
   NavCommand,
   NavState,
@@ -174,7 +176,7 @@ export class TabManager {
   // when the active tab is in a split view).
   private splits = new Map<string, SplitGroup>();
   private onScreen: string[] = [];
-  private recentlyClosed: string[] = [];
+  private recentlyClosed: ClosedTab[] = [];
   private fullscreen = false;
   // Zoom remembered per site (host → zoom; 100% isn't stored), and the tab
   // a find in page is running on.
@@ -697,6 +699,29 @@ export class TabManager {
     this.reinsert(id, () => this.groupStart(EVERYDAY));
   }
 
+  // Drops a tab into Basecamp, the pinned tabs, or the everyday tabs at
+  // `toIndex` (dragging between Basecamp and a space's tabs). A tile
+  // leaving Basecamp joins this space; Basecamp takes at most
+  // BASECAMP_MAX.
+  placeIn(
+    id: string,
+    group: 'basecamp' | 'pinned' | 'everyday',
+    toIndex: number,
+  ) {
+    const tab = this.entries.get(id)?.tab;
+    if (!tab) return;
+    if (group === 'basecamp') {
+      if (!tab.basecamp) {
+        if (this.basecampCount >= BASECAMP_MAX) return;
+        this.addToBasecamp(id);
+      }
+      this.move(id, toIndex);
+      return;
+    }
+    if (tab.basecamp) this.removeFromBasecamp(id);
+    this.place(id, group === 'pinned', toIndex);
+  }
+
   // Closes the active space's everyday tabs (the divider's "Clear").
   clearEveryday() {
     const everyday = this.shown.filter(
@@ -794,12 +819,71 @@ export class TabManager {
     });
   }
 
-  get closedUrls() {
+  get closedUrls(): ClosedTab[] {
     return [...this.recentlyClosed];
   }
 
-  set closedUrls(urls: string[]) {
-    this.recentlyClosed = urls.slice(-20);
+  set closedUrls(saved: unknown) {
+    const valid = (item: unknown): item is ClosedTab =>
+      typeof item === 'string' ||
+      (!!item &&
+        typeof item === 'object' &&
+        typeof (item as ClosedPin).url === 'string' &&
+        typeof (item as ClosedPin).spaceId === 'string' &&
+        typeof (item as ClosedPin).index === 'number');
+    this.recentlyClosed = (Array.isArray(saved) ? saved : [])
+      .filter(valid)
+      .slice(-20);
+  }
+
+  // Takes a pinned tab away for good (its × once it rests). Ctrl+Shift+T
+  // puts it back, a pin again, in its old place.
+  removePin(id: string) {
+    const entry = this.entries.get(id);
+    if (!entry || groupOf(entry.tab) !== PINNED) return;
+    const { tab } = entry;
+    const index = this.order
+      .filter((other) => {
+        const t = this.entries.get(other)!.tab;
+        return groupOf(t) === PINNED && t.spaceId === tab.spaceId;
+      })
+      .indexOf(id);
+    if (this.activeId === id) {
+      const others = this.recentIds().filter((other) => other !== id);
+      const next =
+        others.find((other) => this.entries.get(other)!.loaded) ?? others[0];
+      if (next) this.activate(next);
+    }
+    this.order.splice(this.order.indexOf(id), 1);
+    this.entries.delete(id);
+    this.onScreen = this.onScreen.filter((other) => other !== id);
+    entry.page.destroy();
+    this.recentlyClosed.push({
+      url: tab.homeUrl ?? tab.url,
+      spaceId: tab.spaceId,
+      homeUrl: tab.homeUrl ?? tab.url,
+      title: tab.title,
+      favicon: tab.favicon,
+      index,
+    });
+    this.recentlyClosed = this.recentlyClosed.slice(-20);
+    this.renumber();
+    if (this.activeId === id) {
+      // It was the only tab in this space.
+      this.activeId = null;
+      this.emitTabs();
+      this.emitNav();
+      this.options.onEmpty();
+      return;
+    }
+    this.emitTabs();
+  }
+
+  // The space the next tab to reopen belongs in, if it's a pinned tab (so
+  // the window can switch there first).
+  get nextClosedSpace(): string | undefined {
+    const next = this.recentlyClosed.at(-1);
+    return typeof next === 'object' ? next.spaceId : undefined;
   }
 
   activate(id: string) {
@@ -1252,8 +1336,21 @@ export class TabManager {
   }
 
   reopenClosed() {
-    const url = this.recentlyClosed.pop();
-    if (url) this.create(url);
+    const next = this.recentlyClosed.pop();
+    if (!next) return;
+    if (typeof next === 'string') {
+      this.create(next);
+      return;
+    }
+    // A removed pin: a pin again, in its old place (in this space, if its
+    // own is gone).
+    const id = this.create(next.url, { activate: false });
+    const tab = this.entries.get(id)!.tab;
+    tab.title = next.title;
+    tab.favicon = next.favicon;
+    this.place(id, true, next.index);
+    tab.homeUrl = next.homeUrl;
+    this.activate(id);
   }
 
   // Moves to the next (1) or previous (-1) tab, wrapping around.

@@ -15,6 +15,7 @@ import {
   type IpcMainEvent,
   type IpcMainInvokeEvent,
   type Input,
+  webContents,
   type WebContents,
 } from 'electron';
 import { execFile } from 'node:child_process';
@@ -2170,10 +2171,18 @@ const createWindow = () => {
   // than waiting for hover events, which never fire again while the pointer
   // stays pressed against the screen's edge (e.g. a maximized window).
   let edgeWatch: ReturnType<typeof setTimeout> | undefined;
+  // Set while the window is minimized; cleared once it's back and redrawn.
+  let wasMinimized = false;
+  let repaintBack = () => {};
   let topEdgeSince = 0;
   const watchEdges = () => {
     if (win.isDestroyed()) return;
-    const away = !win.isVisible() || win.isMinimized() || isFullscreen();
+    const minimized = win.isMinimized();
+    if (wasMinimized && !minimized && win.isVisible()) {
+      wasMinimized = false;
+      repaintBack();
+    }
+    const away = !win.isVisible() || minimized || isFullscreen();
     edgeWatch = setTimeout(
       watchEdges,
       away
@@ -2417,7 +2426,13 @@ const createWindow = () => {
             addToBasecamp,
             ...moveToSpace,
             { type: 'separator' },
-            { label: 'Unload tab', click: () => tabs.close(id) },
+            // Resting already: the next step is taking it away (as its ×).
+            tab.loaded
+              ? { label: 'Unload tab', click: () => tabs.close(id) }
+              : {
+                  label: 'Remove pinned tab',
+                  click: () => tabs.removePin(id),
+                },
           ]
         : [
             ...splitItems,
@@ -2454,6 +2469,14 @@ const createWindow = () => {
 
   const sendSpaces = () =>
     send('spaces:state', { spaces, activeSpaceId: windowState.activeSpaceId });
+
+  // Reopens the last closed tab; a removed pinned tab goes back to its own
+  // space, so the window switches there first.
+  const reopenClosed = () => {
+    const space = tabs.nextClosedSpace;
+    if (space) switchSpace(space);
+    tabs.reopenClosed();
+  };
 
   const switchSpace = (id: string) => {
     if (id === windowState.activeSpaceId) return;
@@ -2624,7 +2647,7 @@ const createWindow = () => {
         if (id) tabs.close(id);
         break;
       case 'reopen':
-        tabs.reopenClosed();
+        reopenClosed();
         break;
       case 'separate':
         if (id) tabs.unsplit(id);
@@ -2794,6 +2817,9 @@ const createWindow = () => {
     'tabs:close': (_sender, id) => {
       if (typeof id === 'string') tabs.close(id);
     },
+    'tabs:remove-pin': (_sender, id) => {
+      if (typeof id === 'string') tabs.removePin(id);
+    },
     'tabs:toggle-mute': (_sender, id) => {
       if (typeof id === 'string') tabs.toggleMute(id);
     },
@@ -2854,6 +2880,7 @@ const createWindow = () => {
       const at = carry as CarryTab;
       carried = {
         ...at,
+        tile: at.tile === true,
         x: at.x + origin.x,
         y: at.y + origin.y,
         fromX: at.fromX + origin.x,
@@ -2921,6 +2948,19 @@ const createWindow = () => {
       if (typeof pinned === 'boolean')
         tabs.place(id, pinned, toIndex as number);
       else tabs.move(id, toIndex as number);
+    },
+    'tabs:move-to': (_sender, id, group, toIndex) => {
+      if (
+        typeof id !== 'string' ||
+        !Number.isInteger(toIndex) ||
+        !['basecamp', 'pinned', 'everyday'].includes(group as string)
+      )
+        return;
+      tabs.placeIn(
+        id,
+        group as 'basecamp' | 'pinned' | 'everyday',
+        toIndex as number,
+      );
     },
     'tabs:activate': (_sender, id) => {
       if (typeof id !== 'string') return;
@@ -3425,7 +3465,7 @@ const createWindow = () => {
         tabs.zoom(0);
         break;
       case 'reopen-tab':
-        tabs.reopenClosed();
+        reopenClosed();
         break;
       case 'new-tab':
         openCommandBar();
@@ -3516,7 +3556,7 @@ const createWindow = () => {
         macMenuTemplate({
           settings: live(() => openSettings()),
           newTab: live(() => openCommandBar()),
-          reopenClosedTab: live(() => tabs.reopenClosed()),
+          reopenClosedTab: live(() => reopenClosed()),
           closeTab: live(() => {
             if (tabs.activeTabId) tabs.close(tabs.activeTabId);
           }),
@@ -3580,16 +3620,32 @@ const createWindow = () => {
   // screen changed (a known Electron problem): draw what's on screen again,
   // once right away and once the window has settled.
   const repaintAll = () => {
-    if (win.isDestroyed()) return;
+    if (win.isDestroyed() || win.isMinimized()) return;
+    const focused = webContents.getFocusedWebContents();
     tabs.repaint();
+    // The pages were put back on the window: lift Firn's layers above them.
+    raiseLayers();
     for (const web of uiContents) if (!web.isDestroyed()) web.invalidate();
+    if (focused && !focused.isDestroyed()) focused.focus();
   };
+  // Right away, once the window has settled, and once more a little later
+  // (Windows can still be bringing the window back on the first ones).
   const repaintSoon = () => {
     repaintAll();
     setTimeout(repaintAll, 150);
+    setTimeout(repaintAll, 500);
   };
-  win.on('restore', repaintSoon);
-  win.on('show', repaintSoon);
+  const back = () => {
+    wasMinimized = false;
+    repaintSoon();
+  };
+  repaintBack = back;
+  win.on('restore', back);
+  win.on('show', back);
+  // In case Windows brings the window back without saying so ('restore'
+  // doesn't always come for a frameless window), the edge watch, which
+  // looks once a second while minimized, notices too (see watchEdges).
+  win.on('minimize', () => (wasMinimized = true));
   for (const event of ['resize', 'move', 'maximize', 'unmaximize'] as const)
     win.on(event as 'resize', () => saver.schedule());
   win.on('close', () => {

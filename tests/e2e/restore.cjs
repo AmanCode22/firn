@@ -1,8 +1,9 @@
 // Back from being minimized, Firn draws what's on screen again: the page
 // (which could stay blank until something changed, a known Electron
 // problem on Windows) and its own layers, once right away and once the
-// window has settled, nudging the page's size by a pixel (a redraw alone
-// isn't always enough).
+// window has settled, nudging the page's size by a pixel and handing its
+// view to the window again (on Windows only that last one, what a tab switch
+// does, brought it back), with Firn's own layers lifted back above it.
 const { _electron } = require('./playwright.cjs');
 const ROOT = require('path').resolve(__dirname, '../..');
 const { execSync } = require('child_process');
@@ -44,14 +45,14 @@ const check = (n, ok, x = '') => {
       };
     }
     BrowserWindow.getAllWindows()[0].emit('restore');
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 700));
     return Object.fromEntries(seen);
   });
   const page = Object.entries(counts).find(([u]) => u.includes('red.html'));
   const sidebar = Object.entries(counts).find(([u]) => u.endsWith(':5173/'));
   check(
-    'back from minimized: the page on screen is drawn again, twice',
-    page?.[1] === 2,
+    'back from minimized: the page on screen is drawn again, three times',
+    page?.[1] === 3,
     JSON.stringify(counts),
   );
   check("...and Firn's own sidebar too", (sidebar?.[1] ?? 0) >= 1);
@@ -83,6 +84,85 @@ const check = (n, ok, x = '') => {
       heights[1] === heights[0] - 1 &&
       heights.at(-1) === heights[0],
     heights.join(' → '),
+  );
+
+  // (With the command bar open, so a layer is shown over the page.)
+  await ui.click('.new-tab');
+  await wait(400);
+  // The page's view is handed to the window again (it moves to the top of
+  // the window's views), and Firn's shown layers end up above it again.
+  const order = await app.evaluate(async ({ BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows()[0];
+    const names = () =>
+      win.contentView.children.map((v) => {
+        const url = v.webContents?.getURL() ?? '';
+        return url.includes('red.html')
+          ? 'page'
+          : url.includes('view=')
+            ? url.split('view=')[1].split('&')[0]
+            : url.endsWith(':5173/')
+              ? 'sidebar'
+              : 'other';
+      });
+    const index = (list) => list.indexOf('page');
+    const before = names();
+    // Something else on top first, so a hand-back shows as a move.
+    const other = win.contentView.children.find(
+      (v) => !(v.webContents?.getURL() ?? '').includes('red.html'),
+    );
+    win.contentView.addChildView(other);
+    const moved = index(names());
+    win.emit('restore');
+    await new Promise((r) => setTimeout(r, 50));
+    const after = names();
+    const page = win.contentView.children.find((v) =>
+      v.webContents?.getURL().includes('red.html'),
+    );
+    return { before, moved, after, visible: page.getVisible() };
+  });
+  check(
+    "...the page's view handed to the window again, still shown",
+    order.after.indexOf('page') > order.moved && order.visible,
+    JSON.stringify(order),
+  );
+  check(
+    '(the command bar was open over the page)',
+    order.before.indexOf('floating') > order.before.indexOf('page'),
+  );
+  const shownLayers = order.before
+    .slice(order.before.indexOf('page') + 1)
+    .filter((n) => n !== 'other');
+  check(
+    "...with Firn's layers that were above it still above it",
+    shownLayers.every(
+      (n) => order.after.indexOf(n) > order.after.indexOf('page'),
+    ),
+    JSON.stringify(shownLayers),
+  );
+  await fl.keyboard.press('Escape');
+  await wait(300);
+
+  // Brought back without a 'restore' (it doesn't always come for a frameless
+  // window): the edge watch, once a second while minimized, notices.
+  const quiet = await app.evaluate(async ({ BrowserWindow, webContents }) => {
+    const win = BrowserWindow.getAllWindows()[0];
+    let draws = 0;
+    for (const web of webContents.getAllWebContents())
+      if (web.getURL().includes('red.html')) {
+        const draw = web.invalidate.bind(web);
+        web.invalidate = () => {
+          draws++;
+          draw();
+        };
+      }
+    win.emit('minimize');
+    await new Promise((r) => setTimeout(r, 1800));
+    return draws;
+  });
+  check(
+    "back without a 'restore': still drawn again",
+    quiet >= 1,
+    String(quiet),
   );
 
   console.log(

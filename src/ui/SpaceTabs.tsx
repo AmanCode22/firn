@@ -16,6 +16,7 @@ import {
 import { useFollowPointer } from './followPointer';
 import { carry, CARRY_AFTER, dragOverPage } from './splitDrag';
 import { layerShown } from './quietWhenHidden';
+import { basecampTarget, setTabsTarget, type TabsDrop } from './sidebarDrop';
 import {
   sameRowProps,
   TabIcon,
@@ -28,8 +29,11 @@ import {
 // "New tab", then its everyday tabs.
 //
 // Any tab can be dragged up or down, including across the divider: above
-// it, the tab is pinned; below it, unpinned. Dragged out onto the page, it
-// opens in split view there (src/ui/splitDrag.ts). A tab opens when it's
+// it, the tab is pinned; below it, unpinned. Dragged up past the list's top
+// (a single tab, not a split view's row), it joins Basecamp, which opens a
+// spot for it; a Basecamp tile dragged down into the list opens a gap here
+// and becomes a pinned or everyday tab (src/ui/sidebarDrop.ts). Dragged
+// out onto the page, it opens in split view there (src/ui/splitDrag.ts). A tab opens when it's
 // clicked (pressed and let go without dragging), so dragging one leaves
 // the page on screen as it is. Whenever tabs change places
 // (dragging, pinning from the menu, closing, opening), the rows glide to
@@ -39,6 +43,8 @@ import {
 // clicks never turn into accidental drags).
 const DRAG_THRESHOLD = 4;
 const ROW_GAP = 4; // matches the gap between rows in styles.css
+// The room an incoming Basecamp tile opens: a row and its gap.
+const INCOMING_PITCH = 36 + ROW_GAP;
 const GLIDE = { duration: 200, easing: 'cubic-bezier(0.33, 1, 0.68, 1)' };
 
 // One thing in the list, as measured when a drag starts.
@@ -64,14 +70,29 @@ interface Drag {
   box: { left: number; top: number };
   // Out over the page (to open it in split view), not reordering.
   overPage: boolean;
+  // Up over Basecamp: where it would join it (null: not there).
+  basecampIndex: number | null;
   items: Item[]; // measured once the drag starts
 }
 
-// Where a dragged tab would land.
-interface Drop {
-  pinned: boolean;
-  index: number; // within the pinned or everyday tabs
-  slot: number; // position among the other items in the list
+// Where a dragged tab would land (`slot`: its position among the other
+// items in the list).
+type Drop = TabsDrop;
+
+// Where something dropped at height `y` (from the list's top) would land,
+// among `items` (not counting itself).
+function dropAt(items: Item[], y: number): Drop {
+  // The divider counts as passed only once it's fully above, so anywhere
+  // above its bottom edge pins (even with no pins yet).
+  let slot = items.filter((o) =>
+    o.key === 'divider' ? o.top + o.height < y : o.top + o.height / 2 < y,
+  ).length;
+  const divider = items.findIndex((o) => o.key === 'divider');
+  const newTab = items.findIndex((o) => o.key === 'new-tab');
+  // Between the divider and "New tab" means the top of the everyday tabs.
+  if (slot > divider && slot <= newTab) slot = newTab + 1;
+  const pinned = slot <= divider;
+  return { pinned, index: pinned ? slot : slot - newTab - 1, slot };
 }
 
 export function SpaceTabs({
@@ -147,21 +168,47 @@ export function SpaceTabs({
   const dropFor = (d: Drag): Drop | null => {
     const self = d.items.find((i) => i.key === d.id);
     if (!self) return null;
-    const others = d.items.filter((i) => i !== self);
-    const center = self.top + self.height / 2 + d.dy;
-    // The divider counts as passed only once the tab is fully below it, so
-    // anywhere above its bottom edge pins (even with no pins yet).
-    let slot = others.filter((o) =>
-      o.key === 'divider'
-        ? o.top + o.height < center
-        : o.top + o.height / 2 < center,
-    ).length;
-    const divider = others.findIndex((o) => o.key === 'divider');
-    const newTab = others.findIndex((o) => o.key === 'new-tab');
-    // Between the divider and "New tab" means the top of the everyday tabs.
-    if (slot > divider && slot <= newTab) slot = newTab + 1;
-    const pinned = slot <= divider;
-    return { pinned, index: pinned ? slot : slot - newTab - 1, slot };
+    return dropAt(
+      d.items.filter((i) => i !== self),
+      self.top + self.height / 2 + d.dy,
+    );
+  };
+
+  // --- A Basecamp tile coming in ------------------------------------------------
+  // While a tile is dragged over the list, a gap opens where it would land
+  // (the rows from there glide down by one).
+  const [incoming, setIncoming] = useState<Drop | null>(null);
+  const measured = useRef<Item[]>([]);
+  useLayoutEffect(() => {
+    setTabsTarget({
+      top: () => listRef.current?.getBoundingClientRect().top ?? Infinity,
+      dropAt: (x, y) => {
+        const list = listRef.current;
+        if (!list) return null;
+        const box = list.getBoundingClientRect();
+        if (x < box.left || x > box.right || y < box.top) return null;
+        measured.current = itemElements(list).map((el) => ({
+          key: el.dataset.item!,
+          top: topOf(el, list),
+          height: el.offsetHeight,
+        }));
+        return dropAt(measured.current, y - box.top);
+      },
+      show: (drop) =>
+        setIncoming((was) =>
+          was?.slot === drop?.slot && was?.pinned === drop?.pinned ? was : drop,
+        ),
+    });
+    return () => setTabsTarget(null);
+  }, []);
+
+  // How far each item is nudged to make room for an incoming tile.
+  const incomingOffsets = (drop: Drop) => {
+    const offsets = new Map<string, number>();
+    measured.current.forEach((item, j) => {
+      if (j >= drop.slot) offsets.set(item.key, INCOMING_PITCH);
+    });
+    return offsets;
   };
 
   // How far each item is nudged to make room for the dragged tab.
@@ -213,6 +260,7 @@ export function SpaceTabs({
       },
       box: { left: box.left, top: box.top },
       overPage: false,
+      basecampIndex: null,
       items: [],
     });
     followPointer();
@@ -241,24 +289,48 @@ export function SpaceTabs({
     // Out over the page: the row waits in its place while the page shows
     // where the tab would open. (A split view's row moves as a whole, so
     // it isn't dragged into another split.)
-    const carried = d.id === d.tabId && e.clientX - d.startX > CARRY_AFTER;
+    // Up over Basecamp (a single tab): it lifts out and Basecamp opens a
+    // spot for it.
+    const above =
+      d.id === d.tabId && e.clientY < list.getBoundingClientRect().top;
+    const basecampIndex = above
+      ? (basecampTarget()?.indexAt(e.clientX, e.clientY) ?? null)
+      : null;
+    if (basecampIndex !== d.basecampIndex)
+      basecampTarget()?.show(
+        basecampIndex === null ? null : { id: d.id, index: basecampIndex },
+      );
+    const carried =
+      d.id === d.tabId &&
+      (e.clientX - d.startX > CARRY_AFTER || basecampIndex !== null);
     if (carried)
-      carry(e, d.tabId, d.grab, {
-        left: d.box.left,
-        top: d.box.top + (d.carried ? 0 : d.dy),
-      });
+      carry(
+        e,
+        d.tabId,
+        // Over Basecamp, as a tile held by its middle.
+        basecampIndex === null ? d.grab : { x: 22, y: 22, width: 44 },
+        { left: d.box.left, top: d.box.top + (d.carried ? 0 : d.dy) },
+        basecampIndex !== null,
+      );
     else if (d.carried) window.firn.carryTab(null);
     const overPage = carried && dragOverPage(e, d.tabId, listRef.current);
     if (d.overPage && !overPage) window.firn.endDragToSplit(false);
     if (carried) {
-      update({ ...d, dy: 0, active: true, carried, overPage });
+      update({ ...d, dy: 0, active: true, carried, overPage, basecampIndex });
       return;
     }
     const dy = Math.max(
       -self.top,
       Math.min(last.top + last.height - self.top - self.height / 2, raw),
     );
-    update({ ...d, dy, active: true, carried, overPage: false });
+    update({
+      ...d,
+      dy,
+      active: true,
+      carried,
+      overPage: false,
+      basecampIndex: null,
+    });
   };
 
   const finish = (commit: boolean) => {
@@ -266,9 +338,19 @@ export function SpaceTabs({
     update(null);
     if (!d) return;
     if (d.carried) window.firn.carryTab(null);
+    if (d.basecampIndex !== null) basecampTarget()?.show(null);
     // A click (no drag): open the tab.
     if (!d.active) {
       if (commit) window.firn.activateTab(d.tabId);
+      return;
+    }
+    // Let go over Basecamp: it joins Basecamp there.
+    if (d.basecampIndex !== null) {
+      if (commit) window.firn.moveTabTo(d.id, 'basecamp', d.basecampIndex);
+      else {
+        setReturning(d.id);
+        setTimeout(() => setReturning(null), GLIDE.duration + 50);
+      }
       return;
     }
     if (d.overPage) {
@@ -301,9 +383,11 @@ export function SpaceTabs({
 
   const offsets = drag?.active
     ? offsetsFor(drag)
-    : pending?.signature === signature
-      ? pending.offsets
-      : null;
+    : incoming
+      ? incomingOffsets(incoming)
+      : pending?.signature === signature
+        ? pending.offsets
+        : null;
   const nudge = (key: string) => {
     const y = offsets?.get(key);
     return y ? { transform: `translateY(${y}px)` } : undefined;
@@ -331,7 +415,7 @@ export function SpaceTabs({
   return (
     <div
       ref={listRef}
-      className={`space-tabs ${drag?.active ? 'is-dragging' : ''}`}
+      className={`space-tabs ${drag?.active || incoming ? 'is-dragging' : ''}`}
     >
       <div className={`space-pins ${folded ? 'is-folded' : ''}`}>
         <div className="space-pins-inner">
@@ -415,8 +499,13 @@ const TabRow = memo(function TabRow({
   onPointerDown: (e: ReactPointerEvent, rowId: string) => void;
 }) {
   const pinned = kind === 'pinned';
+  // A resting pinned tab offers an × to remove it, but only once the mouse
+  // has left the row and come back after unloading it, so a double-click
+  // on the unload button can't take the pin away by accident.
+  const [armed, setArmed] = useState(true);
   return (
     <div
+      onPointerLeave={() => setArmed(true)}
       className={[
         'tab',
         active && 'is-active',
@@ -452,9 +541,23 @@ const TabRow = memo(function TabRow({
           className="tab-close"
           title={pinned ? 'Unload tab' : 'Close tab'}
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => window.firn.closeTab(tab.id)}
+          onClick={() => {
+            if (pinned) setArmed(false);
+            window.firn.closeTab(tab.id);
+          }}
         >
           {pinned ? <UnloadIcon /> : <CloseIcon />}
+        </button>
+      )}
+      {pinned && !tab.loaded && armed && (
+        <button
+          className="tab-close"
+          data-testid="remove-pin"
+          title="Remove pinned tab"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => window.firn.removePin(tab.id)}
+        >
+          <CloseIcon />
         </button>
       )}
     </div>

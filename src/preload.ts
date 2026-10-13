@@ -75,6 +75,7 @@ const bridge: FirnBridge = {
   lightsAt: (x, y) => ipcRenderer.send('lights:at', x, y),
   setSidebarWidth: (width) => ipcRenderer.send('sidebar:width', width),
   closeTab: (id) => ipcRenderer.send('tabs:close', id),
+  removePin: (id) => ipcRenderer.send('tabs:remove-pin', id),
   toggleMute: (id) => ipcRenderer.send('tabs:toggle-mute', id),
   togglePlaying: (id) => ipcRenderer.send('tabs:toggle-playing', id),
   dragToSplit: (id, x) => ipcRenderer.send('tabs:drag-to-split', id, x),
@@ -86,6 +87,8 @@ const bridge: FirnBridge = {
   activateTab: (id) => ipcRenderer.send('tabs:activate', id),
   moveTab: (id, toIndex, pinned) =>
     ipcRenderer.send('tabs:move', id, toIndex, pinned),
+  moveTabTo: (id, group, toIndex) =>
+    ipcRenderer.send('tabs:move-to', id, group, toIndex),
   showTabMenu: (id) => ipcRenderer.send('tabs:menu', id),
   switchSpace: (id) => ipcRenderer.send('spaces:switch', id),
   newSpace: () => ipcRenderer.send('spaces:new'),

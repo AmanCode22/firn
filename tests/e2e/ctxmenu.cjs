@@ -185,7 +185,9 @@ const check = (n, ok, x = '') => {
       BrowserWindow.getAllWindows()[0]
         .contentView.children.map((c) => c.webContents.getURL())
         .find((u) =>
-          /(duckduckgo\.com\/\?q=|google\.com\/search\?q=)Glacier/.test(u),
+          /(duckduckgo\.com\/\?q=|google\.com\/search\?q=|bing\.com\/search\?q=)Glacier/.test(
+            u,
+          ),
         ) ?? '',
   );
   check(

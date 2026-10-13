@@ -260,7 +260,7 @@ function CarriedTab({ tabs }: { tabs: TabView[] }) {
   const y = phase === 'from' ? shown.fromY : shown.y - shown.grabY;
   return (
     <div
-      className={`carried-tab ${phase === 'gliding' ? 'is-gliding' : ''} ${carry ? '' : 'is-let-go'}`}
+      className={`carried-tab ${shown.tile ? 'is-tile' : ''} ${phase === 'gliding' ? 'is-gliding' : ''} ${carry ? '' : 'is-let-go'}`}
       style={{ width: shown.width, transform: `translate(${x}px, ${y}px)` }}
       onTransitionEnd={() => !carry && setLast(null)}
     >
