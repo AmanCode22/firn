@@ -697,6 +697,29 @@ export class TabManager {
     this.reinsert(id, () => this.groupStart(EVERYDAY));
   }
 
+  // Drops a tab into Basecamp, the pinned tabs, or the everyday tabs at
+  // `toIndex` (dragging between Basecamp and a space's tabs). A tile
+  // leaving Basecamp joins this space; Basecamp takes at most
+  // BASECAMP_MAX.
+  placeIn(
+    id: string,
+    group: 'basecamp' | 'pinned' | 'everyday',
+    toIndex: number,
+  ) {
+    const tab = this.entries.get(id)?.tab;
+    if (!tab) return;
+    if (group === 'basecamp') {
+      if (!tab.basecamp) {
+        if (this.basecampCount >= BASECAMP_MAX) return;
+        this.addToBasecamp(id);
+      }
+      this.move(id, toIndex);
+      return;
+    }
+    if (tab.basecamp) this.removeFromBasecamp(id);
+    this.place(id, group === 'pinned', toIndex);
+  }
+
   // Closes the active space's everyday tabs (the divider's "Clear").
   clearEveryday() {
     const everyday = this.shown.filter(

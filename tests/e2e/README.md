@@ -61,6 +61,7 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `sleep` | Sleeping tabs (pretended: 3 seconds): a tab not on screen for a while is set aside and rests quieter; the tab on screen, one playing sound, and one with typed text stay awake; clicking a sleeping tab brings it back with its history; a tab just left stays awake the full time |
 | `downloadfx` | A download's small moments in the sidebar: the new row rises in with a wash of color and a soft ring, the file settles in when done, a very long name keeps the row (and its ×) inside the sidebar, and rows already there at start are simply there |
 | `useragent` | Websites see Firn as plain Chrome (no "Firn" or "Electron" in the browser's name), both what pages read and what they're sent |
+| `basecampdrag` | Dragging between Basecamp and the tabs: a tab dragged up opens a spot in Basecamp and joins it; a tile dragged down opens a gap and becomes an everyday tab, or a pinned tab above the divider |
 
 `site/` is a tiny test website the checks visit (served on this computer
 only). `cdp.cjs`, `playwright.cjs` and `warp.py` are small helpers.

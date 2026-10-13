@@ -11,6 +11,7 @@ import { useIconColor } from './iconColor';
 import { useFollowPointer } from './followPointer';
 import { carry, dragOverPage } from './splitDrag';
 import { layerShown } from './quietWhenHidden';
+import { setBasecampTarget, tabsTarget, type TabsDrop } from './sidebarDrop';
 import {
   sameRowProps,
   TabIcon,
@@ -32,10 +33,14 @@ import {
 // follows the pointer, the others glide aside to make room, and it settles
 // into its new place. Dragged out onto the page instead, a copy of it
 // opens there in split view (src/ui/splitDrag.ts); the tile stays put.
+// Dragged down into the space's tabs, it leaves Basecamp and becomes a
+// pinned or everyday tab there; a tab dragged up from the tabs joins
+// Basecamp, which opens a spot for it (src/ui/sidebarDrop.ts).
 
 // How far the pointer must move before a press becomes a drag (so ordinary
 // clicks never turn into accidental drags).
 const DRAG_THRESHOLD = 4;
+const BASECAMP_MAX = 12; // as in src/tabs.ts
 const GLIDE = { duration: 200, easing: 'cubic-bezier(0.33, 1, 0.68, 1)' };
 
 interface Spot {
@@ -59,6 +64,8 @@ interface Drag {
   // The tile's box when it was picked up, and Basecamp's right edge.
   box: { left: number; top: number };
   gridRight: number;
+  // Down over the space's tabs: where it would land there (null: not).
+  tabsDrop: TabsDrop | null;
   // Measured once the drag starts: each tile's spot within the grid, and
   // the grid's size.
   spots: Map<string, Spot>;
@@ -101,7 +108,12 @@ export function Basecamp({
   } | null>(null);
   const [returning, setReturning] = useState<string | null>(null);
   const ids = tabs.map((t) => t.id);
-  const signature = ids.join(',');
+  // A tab dragged up from the space's tabs: where its spot opens.
+  const [incoming, setIncoming] = useState<{
+    id: string;
+    index: number;
+  } | null>(null);
+  const signature = ids.join(',') + (incoming ? `|+${incoming.index}` : '');
 
   // --- Gliding into new places ----------------------------------------------
   // When the tiles change (a drop, one added or removed), note where each
@@ -198,6 +210,7 @@ export function Basecamp({
       carried: false,
       box: { left: box.left, top: box.top },
       gridRight: gridRef.current?.getBoundingClientRect().right ?? Infinity,
+      tabsDrop: null,
       spots: new Map(),
       size: { width: 0, height: 0, tileWidth: 0, tileHeight: 0 },
     });
@@ -225,7 +238,19 @@ export function Basecamp({
     }
     // Out over the page: the tile waits in its place while the page shows
     // where a copy of it would open.
-    const carried = e.clientX > d.gridRight;
+    // Down over the space's tabs: it lifts out, and the tabs open a gap
+    // where it would land.
+    const gridBottom = grid.getBoundingClientRect().bottom;
+    const tabsDrop =
+      e.clientY > gridBottom
+        ? (tabsTarget()?.dropAt(e.clientX, e.clientY) ?? null)
+        : null;
+    if (
+      tabsDrop?.slot !== d.tabsDrop?.slot ||
+      tabsDrop?.pinned !== d.tabsDrop?.pinned
+    )
+      tabsTarget()?.show(tabsDrop);
+    const carried = e.clientX > d.gridRight || tabsDrop !== null;
     if (carried)
       // Carried as a tab: held near its start, from where the tile is.
       carry(
@@ -241,7 +266,7 @@ export function Basecamp({
     const overPage = carried && dragOverPage(e, d.id, gridRef.current);
     if (d.overPage && !overPage) window.firn.endDragToSplit(false);
     if (carried) {
-      update({ ...d, dx: 0, dy: 0, active: true, carried, overPage });
+      update({ ...d, dx: 0, dy: 0, active: true, carried, overPage, tabsDrop });
       return;
     }
     // Keep it within Basecamp.
@@ -254,7 +279,15 @@ export function Basecamp({
       -self.y,
       Math.min(d.size.height - d.size.tileHeight - self.y, rawY),
     );
-    update({ ...d, dx, dy, active: true, carried, overPage: false });
+    update({
+      ...d,
+      dx,
+      dy,
+      active: true,
+      carried,
+      overPage: false,
+      tabsDrop: null,
+    });
   };
 
   const finish = (commit: boolean) => {
@@ -262,9 +295,19 @@ export function Basecamp({
     update(null);
     if (!d) return;
     if (d.carried) window.firn.carryTab(null);
+    if (d.tabsDrop) tabsTarget()?.show(null);
     // A click (no drag): open the tile's site.
     if (!d.active) {
       if (commit) window.firn.activateTab(d.id);
+      return;
+    }
+    // Let go over the space's tabs: it leaves Basecamp and lands there.
+    if (d.tabsDrop && commit) {
+      window.firn.moveTabTo(
+        d.id,
+        d.tabsDrop.pinned ? 'pinned' : 'everyday',
+        d.tabsDrop.index,
+      );
       return;
     }
     if (d.overPage) window.firn.endDragToSplit(commit);
@@ -285,8 +328,54 @@ export function Basecamp({
   // (Before the early return below: hooks must run on every render.)
   const tileDown = useSteady(onPointerDown);
 
-  if (!tabs.length) return null;
-  const layout = tileSpots(tabs.length, gridWidth);
+  // --- A tab coming in from the space's tabs -------------------------------------
+  // Where it would join: the place in reading order (row by row, left to
+  // right) nearest the pointer. Nowhere once Basecamp is full.
+  const live = useRef<{
+    ids: string[];
+    layout: ReturnType<typeof tileSpots>;
+    shown: (TabView | null)[];
+  }>({ ids, layout: { columns: 1, spots: [] }, shown: [] });
+  useLayoutEffect(() => {
+    setBasecampTarget({
+      indexAt: (x, y) => {
+        const { ids: now } = live.current;
+        if (now.length >= BASECAMP_MAX) return null;
+        const grid = gridRef.current;
+        if (!grid) return 0;
+        // Where each tile settles (from its row and column in the grid),
+        // not where it is mid-glide, so the spot doesn't flicker while the
+        // tiles make room.
+        const { layout: placed, shown: order } = live.current;
+        const g = grid.getBoundingClientRect();
+        const width =
+          (g.width - TILE_GAP * (placed.columns - 1)) / placed.columns;
+        let index = 0;
+        order.forEach((tab, i) => {
+          const at = placed.spots[i];
+          if (!tab || !at) return;
+          const left = g.left + (at.column - 1) * (width + TILE_GAP);
+          const top = g.top + (at.row - 1) * (TILE_HEIGHT + TILE_GAP);
+          const rowAbove = top + TILE_HEIGHT < y;
+          const sameRow = top <= y && y <= top + TILE_HEIGHT;
+          if (rowAbove || (sameRow && left + width / 2 < x)) index++;
+        });
+        return Math.min(index, now.length);
+      },
+      show: (next) =>
+        setIncoming((was) =>
+          was?.id === next?.id && was?.index === next?.index ? was : next,
+        ),
+    });
+    return () => setBasecampTarget(null);
+  }, []);
+
+  if (!tabs.length && !incoming) return null;
+  // The tiles as drawn: an incoming tab's spot opens among them.
+  const shown: (TabView | null)[] = [...tabs];
+  if (incoming) shown.splice(incoming.index, 0, null);
+  const layout = tileSpots(shown.length, gridWidth);
+  live.current = { ids, layout, shown };
   const offsets = drag?.active
     ? offsetsFor(drag)
     : pending?.signature === signature
@@ -296,10 +385,22 @@ export function Basecamp({
     <div className="basecamp">
       <div
         ref={gridRef}
-        className={`basecamp-grid ${drag?.active ? 'is-dragging' : ''}`}
+        className={`basecamp-grid ${drag?.active || incoming ? 'is-dragging' : ''}`}
         style={{ gridTemplateColumns: `repeat(${layout.columns}, 1fr)` }}
       >
-        {tabs.map((tab, i) => {
+        {shown.map((tab, i) => {
+          if (!tab)
+            return (
+              <span
+                key="incoming"
+                className="basecamp-tile is-incoming"
+                data-tile="incoming"
+                style={{
+                  gridRow: layout.spots[i]?.row,
+                  gridColumn: layout.spots[i]?.column,
+                }}
+              />
+            );
           const offset = offsets?.get(tab.id);
           return (
             <BasecampTile
@@ -414,6 +515,7 @@ function spotsOf(grid: HTMLElement | null) {
 // (`tileSpots`); tiles keep one size, left-aligned.
 const TILE_MIN = 52; // as narrow as a tile gets (px)
 const TILE_GAP = 6; // as in .basecamp-grid
+const TILE_HEIGHT = 44; // as in .basecamp-tile
 export function rowSizes(count: number, width: number) {
   if (count <= 0) return [];
   const fit = Math.max(

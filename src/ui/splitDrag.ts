@@ -34,14 +34,16 @@ export function dragOverPage(
 export const CARRY_AFTER = 16;
 
 // What's needed to carry it: where it was grabbed, and where it's drawn
-// now (`box`, in this layer).
+// now (`box`, in this layer); `tile`: drawn as a Basecamp tile.
 export function carry(
   e: { clientX: number; clientY: number },
   tabId: string,
   grab: { x: number; y: number; width: number },
   box: { left: number; top: number },
+  tile = false,
 ) {
   window.firn.carryTab({
+    tile,
     tabId,
     x: e.clientX,
     y: e.clientY,

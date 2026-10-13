@@ -315,6 +315,9 @@ export interface CarryTab {
   width: number;
   fromX: number;
   fromY: number;
+  // Drawn as a Basecamp tile (just its icon) while it's over Basecamp, so
+  // the spot it would take stays in view.
+  tile?: boolean;
 }
 
 // The handle at the top of one side of a split view (on the floating
@@ -516,6 +519,12 @@ export interface FirnBridge {
   // Moves a tab within its group, or (with `pinned`) into the pinned or
   // everyday tabs at that spot.
   moveTab(id: string, toIndex: number, pinned?: boolean): void;
+  // Moves a tab into Basecamp, the pinned tabs, or the everyday tabs.
+  moveTabTo(
+    id: string,
+    group: 'basecamp' | 'pinned' | 'everyday',
+    toIndex: number,
+  ): void;
   showTabMenu(id: string): void;
   switchSpace(id: string): void;
   newSpace(): void;

@@ -2854,6 +2854,7 @@ const createWindow = () => {
       const at = carry as CarryTab;
       carried = {
         ...at,
+        tile: at.tile === true,
         x: at.x + origin.x,
         y: at.y + origin.y,
         fromX: at.fromX + origin.x,
@@ -2921,6 +2922,19 @@ const createWindow = () => {
       if (typeof pinned === 'boolean')
         tabs.place(id, pinned, toIndex as number);
       else tabs.move(id, toIndex as number);
+    },
+    'tabs:move-to': (_sender, id, group, toIndex) => {
+      if (
+        typeof id !== 'string' ||
+        !Number.isInteger(toIndex) ||
+        !['basecamp', 'pinned', 'everyday'].includes(group as string)
+      )
+        return;
+      tabs.placeIn(
+        id,
+        group as 'basecamp' | 'pinned' | 'everyday',
+        toIndex as number,
+      );
     },
     'tabs:activate': (_sender, id) => {
       if (typeof id !== 'string') return;

@@ -1286,6 +1286,14 @@ button {
     transform var(--motion);
 }
 
+.basecamp-tile.is-incoming {
+  /* The spot a tab dragged up from the tabs will take: a soft tile in the
+     space's color (src/ui/sidebarDrop.ts). */
+  background: rgb(var(--space-rgb, 128 120 110) / 0.16);
+  box-shadow: inset 0 0 0 1px rgb(var(--space-rgb, 128 120 110) / 0.35);
+  pointer-events: none;
+}
+
 .basecamp-tile:focus-visible {
   outline: 2px solid var(--frost);
   outline-offset: 1px;
@@ -1493,6 +1501,18 @@ button {
     var(--tab-dragged-shadow);
   pointer-events: none;
   transition: opacity 150ms ease-out;
+}
+
+/* Over Basecamp, it's carried as a tile (just its icon), so the spot it
+   would take stays in view. */
+.carried-tab.is-tile {
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+}
+
+.carried-tab.is-tile .tab-title {
+  display: none;
 }
 
 .carried-tab .tab-title {
