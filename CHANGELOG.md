@@ -1,5 +1,17 @@
 # What's new in Firn
 
+## Firn 0.9.1
+
+**Search the Azure portal, and pull tiles out of Basecamp with ease.**
+
+A few websites mark their top bar as a place to drag the window, meant for their own desktop apps. Firn now ignores that, so their search boxes and menus work as they do in Chrome.
+
+### Fixed
+
+- **The Azure portal's search box** (and anything else in a site's top bar that wouldn't respond) now works, and right-clicking there no longer opens the window's menu.
+- **Basecamp tiles come out more easily.** A tile leaves Basecamp as soon as you drag it past the bottom edge, and letting go just below Basecamp makes it your first pinned tab instead of sending it back.
+- **A double-click on a pinned tab's button** lets it rest, without opening it again.
+
 ## Firn 0.9.0
 
 **Drag your favorite sites into Basecamp.**
