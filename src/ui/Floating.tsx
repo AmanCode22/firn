@@ -1,10 +1,9 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { isSearch, SEARCH_ENGINES, toNavigableUrl } from '../url';
 import type {
   ArchivedTab,
   CarryTab,
   CommandAction,
-  DownloadFlight,
   UpdateState,
   FindResult,
   SplitHandleState,
@@ -142,7 +141,6 @@ export function Floating() {
     <>
       <CarriedTab tabs={tabs} />
       <SplitHandle spaces={spaces} />
-      <DownloadFlake />
     </>
   );
 }
@@ -270,91 +268,6 @@ function CarriedTab({ tabs }: { tabs: TabView[] }) {
         <TabIcon tab={tab} />
       </span>
       <span className="tab-title">{tabTitle(tab)}</span>
-    </div>
-  );
-}
-
-// --- A download's hand-off ----------------------------------------------------
-// A small Firn flake (the mark, like the welcome's drifting flakes) in the
-// space's color glides from where a download was clicked to its row at the
-// bottom of the sidebar (src/main.ts, flyDownload): it lifts, rises a
-// little, and falls into place with a slow quarter turn, shrinking and
-// fading as it lands. Two wrappers carry it across and down (each with its
-// own easing, which makes the arc); transform and opacity only. With
-// reduced motion, no flake: the row's own arrival says enough.
-
-const FLIGHT_MS = 640; // about as in src/main.ts
-const FLIGHT_RISE = 40;
-
-function DownloadFlake() {
-  const [flight, setFlight] = useState<(DownloadFlight & { n: number }) | null>(
-    null,
-  );
-  const across = useRef<HTMLDivElement>(null);
-  const down = useRef<HTMLDivElement>(null);
-  const flake = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    let n = 0;
-    return window.firn.onDownloadFlight((next) =>
-      setFlight({ ...next, n: ++n }),
-    );
-  }, []);
-  useLayoutEffect(() => {
-    if (!flight || !across.current || !down.current || !flake.current) return;
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setFlight(null);
-      window.firn.downloadFlightDone();
-      return;
-    }
-    const { fromX, fromY, toX, toY } = flight;
-    const peak = Math.min(fromY, toY) - FLIGHT_RISE;
-    const timing = { duration: FLIGHT_MS, fill: 'forwards' as const };
-    const moves = [
-      across.current.animate(
-        [
-          { transform: `translateX(${fromX}px)` },
-          { transform: `translateX(${toX}px)` },
-        ],
-        { ...timing, easing: 'cubic-bezier(0.4, 0, 0.6, 1)' },
-      ),
-      // Up gently (easing out), then down into place (easing in).
-      down.current.animate(
-        [
-          {
-            transform: `translateY(${fromY}px)`,
-            easing: 'cubic-bezier(0.3, 0.7, 0.6, 1)',
-          },
-          {
-            transform: `translateY(${peak}px)`,
-            offset: 0.22,
-            easing: 'cubic-bezier(0.45, 0, 0.6, 1)',
-          },
-          { transform: `translateY(${toY}px)` },
-        ],
-        timing,
-      ),
-      flake.current.animate(
-        [
-          { transform: 'rotate(-30deg) scale(0.4)', opacity: 0 },
-          { transform: 'rotate(-22deg) scale(1)', opacity: 1, offset: 0.12 },
-          { transform: 'rotate(54deg) scale(0.85)', opacity: 1, offset: 0.93 },
-          { transform: 'rotate(60deg) scale(0.5)', opacity: 0 },
-        ],
-        { ...timing, easing: 'ease-out' },
-      ),
-    ];
-    moves[2].onfinish = () => {
-      setFlight(null);
-      window.firn.downloadFlightDone();
-    };
-    return () => moves.forEach((move) => move.cancel());
-  }, [flight]);
-  if (!flight) return null;
-  return (
-    <div className="download-flight" ref={across} key={flight.n}>
-      <div ref={down}>
-        <div className="download-flight-flake" ref={flake} />
-      </div>
     </div>
   );
 }

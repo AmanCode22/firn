@@ -184,7 +184,9 @@ const check = (n, ok, x = '') => {
     ({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()[0]
         .contentView.children.map((c) => c.webContents.getURL())
-        .find((u) => u.includes('duckduckgo.com/?q=Glacier')) ?? '',
+        .find((u) =>
+          /(duckduckgo\.com\/\?q=|google\.com\/search\?q=)Glacier/.test(u),
+        ) ?? '',
   );
   check(
     '...Search opens a search for it in a new tab',

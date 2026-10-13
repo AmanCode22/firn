@@ -78,6 +78,19 @@ export function Basecamp({
   activeTabId: string | null;
 }) {
   const gridRef = useRef<HTMLDivElement>(null);
+  // The grid's width, for spreading the tiles evenly over the rows.
+  const [gridWidth, setGridWidth] = useState(0);
+  const hasTiles = tabs.length > 0;
+  useLayoutEffect(() => {
+    const grid = gridRef.current;
+    if (!grid) return;
+    setGridWidth(grid.clientWidth);
+    const watch = new ResizeObserver(([entry]) =>
+      setGridWidth(entry.contentRect.width),
+    );
+    watch.observe(grid);
+    return () => watch.disconnect();
+  }, [hasTiles]);
   const dragRef = useRef<Drag | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   // After a drop, tiles stay where they were dropped until the new order
@@ -273,6 +286,7 @@ export function Basecamp({
   const tileDown = useSteady(onPointerDown);
 
   if (!tabs.length) return null;
+  const layout = tileSpots(tabs.length, gridWidth);
   const offsets = drag?.active
     ? offsetsFor(drag)
     : pending?.signature === signature
@@ -283,8 +297,9 @@ export function Basecamp({
       <div
         ref={gridRef}
         className={`basecamp-grid ${drag?.active ? 'is-dragging' : ''}`}
+        style={{ gridTemplateColumns: `repeat(${layout.columns}, 1fr)` }}
       >
-        {tabs.map((tab) => {
+        {tabs.map((tab, i) => {
           const offset = offsets?.get(tab.id);
           return (
             <BasecampTile
@@ -295,6 +310,8 @@ export function Basecamp({
               carriedAway={drag?.carried === true && drag.id === tab.id}
               returning={returning === tab.id}
               offset={offset}
+              row={layout.spots[i]?.row}
+              column={layout.spots[i]?.column}
               onPointerDown={tileDown}
             />
           );
@@ -311,6 +328,8 @@ const BasecampTile = memo(function BasecampTile({
   carriedAway,
   returning,
   offset,
+  row,
+  column,
   onPointerDown,
 }: {
   tab: TabView;
@@ -320,6 +339,9 @@ const BasecampTile = memo(function BasecampTile({
   carriedAway: boolean;
   returning: boolean;
   offset?: Spot;
+  // Its place in Basecamp's grid (see tileSpots).
+  row?: number;
+  column?: number;
   onPointerDown: (e: ReactPointerEvent, id: string) => void;
 }) {
   // The active tile is tinted with its icon's own color.
@@ -340,6 +362,7 @@ const BasecampTile = memo(function BasecampTile({
       style={
         {
           ...(color && { '--pin-rgb': color }),
+          ...(row && column && { gridRow: row, gridColumn: column }),
           ...(offset && {
             transform: `translate(${offset.x}px, ${offset.y}px)`,
           }),
@@ -380,4 +403,39 @@ function spotsOf(grid: HTMLElement | null) {
     spots.set(el.dataset.tile!, { x: r.left - box.left, y: r.top - box.top });
   }
   return spots;
+}
+
+// Basecamp's tiles are spread as evenly as the rows allow: as many rows as
+// the width needs, the tiles shared out over them (rows differ by one at
+// most, the fuller ones first), never one tile alone on a row (David).
+// With room for 4 across: 4 tiles make one row, 5 make 3 + 2, 6 make
+// 3 + 3, 7 make 4 + 3, 10 make 4 + 3 + 3; with room for 3, 4 make 2 + 2
+// and 7 make 3 + 2 + 2. Each tile is placed in its row and column
+// (`tileSpots`); tiles keep one size, left-aligned.
+const TILE_MIN = 52; // as narrow as a tile gets (px)
+const TILE_GAP = 6; // as in .basecamp-grid
+export function rowSizes(count: number, width: number) {
+  if (count <= 0) return [];
+  const fit = Math.max(
+    1,
+    Math.floor((width + TILE_GAP) / (TILE_MIN + TILE_GAP)),
+  );
+  const rows = Math.ceil(count / fit);
+  const base = Math.floor(count / rows);
+  const fuller = count % rows;
+  return Array.from({ length: rows }, (_, row) =>
+    row < fuller ? base + 1 : base,
+  );
+}
+
+// Where each tile goes, in order: its row and column (from 1, for CSS
+// grid), and how many columns the grid has.
+function tileSpots(count: number, width: number) {
+  const sizes = rowSizes(count, width);
+  const spots: { row: number; column: number }[] = [];
+  sizes.forEach((size, row) => {
+    for (let column = 0; column < size; column++)
+      spots.push({ row: row + 1, column: column + 1 });
+  });
+  return { columns: Math.max(1, ...sizes), spots };
 }

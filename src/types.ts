@@ -306,17 +306,6 @@ export type WindowCommand = 'minimize' | 'toggle-maximize' | 'close';
 // (`x`, `y`), where on the tab it holds it (`grabX`, `grabY`), how wide
 // the tab is, and where the tab was when it was picked up (`fromX`,
 // `fromY`: its top left corner), so it can glide from there to the pointer.
-// A download's hand-off: a small Firn flake glides from where it was clicked
-// (`from`) to its row at the bottom of the sidebar, or to the window's left
-// edge while the sidebar is hidden (`to`). In the floating layer's own
-// coordinates.
-export interface DownloadFlight {
-  fromX: number;
-  fromY: number;
-  toX: number;
-  toY: number;
-}
-
 export interface CarryTab {
   tabId: string;
   x: number;
@@ -571,12 +560,6 @@ export interface FirnBridge {
   onOverlayState(listener: (state: OverlayState) => void): () => void;
   onFindResult(listener: (result: FindResult) => void): () => void;
   onDownloadsState(listener: (downloads: Download[]) => void): () => void;
-  // A download's dot is gliding to the sidebar (the floating layer draws
-  // it), and when it lands (the sidebar's row catches it).
-  onDownloadFlight(listener: (flight: DownloadFlight) => void): () => void;
-  // The floating layer: the flake has landed (or there was none to draw).
-  downloadFlightDone(): void;
-  onDownloadLanded(listener: () => void): () => void;
   onTopBarState(listener: (shown: boolean) => void): () => void;
   onSidebarState(listener: (state: SidebarState) => void): () => void;
   onFrameState(listener: (state: FrameState) => void): () => void;

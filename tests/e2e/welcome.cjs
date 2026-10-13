@@ -136,7 +136,30 @@ const settings = () => {
   check('...and back to "In the sidebar"', settings().addressBar === 'sidebar');
   await next();
   check(
-    'step 3: your first space',
+    'step 3: which search (Google ready-selected)',
+    (await title()) === 'Which search do you like?' &&
+      settings().searchEngine === 'google' &&
+      (await fl
+        .evaluate(() =>
+          [...document.querySelectorAll('[data-testid="welcome-engine"]')].map(
+            (b) => b.querySelector('strong').textContent,
+          ),
+        )
+        .then((names) => names.join(',') === 'Google,DuckDuckGo,Bing')),
+    settings().searchEngine,
+  );
+  await fl.click('[data-testid="welcome-engine"]:has-text("DuckDuckGo")');
+  await wait(500);
+  check(
+    'picking DuckDuckGo switches it right away',
+    settings().searchEngine === 'duckduckgo',
+  );
+  await fl.click('[data-testid="welcome-engine"]:has-text("Google")');
+  await wait(500);
+  shot('welcome-search');
+  await next();
+  check(
+    'step 4: your first space',
     (await title()) === 'Make your first space',
   );
   await fl.click('.welcome-name input');
@@ -174,16 +197,36 @@ const settings = () => {
     () => document.querySelector('.space-header-name')?.textContent,
   );
   check('the space takes its new name and color', header === 'Home', header);
+  const guide = await fl.evaluate(() => {
+    const g = document.querySelector('[data-testid="welcome-guide"]');
+    return {
+      parts: [...(g?.querySelectorAll('li strong') ?? [])].map(
+        (s) => s.textContent,
+      ),
+      drawing: !!g?.querySelector('svg .guide-tile'),
+      tip: document.querySelector('.welcome-guide-tip')?.textContent ?? '',
+    };
+  });
   check(
-    'step 4: everyday sites',
-    (await title()) === 'Pick your everyday sites',
+    'step 5: how the sidebar works (a drawing: Basecamp, pinned tabs, tabs; right-click to add)',
+    (await title()) === 'How your sidebar works' &&
+      guide.parts.join(',') === 'Basecamp,Pinned tabs,Tabs' &&
+      guide.drawing &&
+      guide.tip.includes('Right-click any tab'),
+    JSON.stringify(guide),
+  );
+  shot('welcome-guide');
+  await next();
+  check(
+    'step 6: start your Basecamp',
+    (await title()) === 'Start your Basecamp',
   );
   for (const n of ['Gmail', 'YouTube', 'Calendar'])
     await fl.click(`.welcome-site:has-text("${n}")`);
   await fl.click('.welcome-site:has-text("YouTube")'); // changed my mind
   shot('welcome-4');
   await next();
-  check('step 5: tips', (await title()) === "You're all set");
+  check('step 7: tips', (await title()) === "You're all set");
   shot('welcome-5');
   await fl.click('.welcome-next');
   await wait(700);
@@ -269,7 +312,7 @@ const settings = () => {
   });
   await ui.evaluate(() => window.firn.runAction('welcome'));
   await wait(600);
-  for (let i = 0; i < 3; i++) await next();
+  for (let i = 0; i < 5; i++) await next(); // to the Basecamp step
   const imgs = await fl.evaluate(() =>
     [...document.querySelectorAll('.welcome-site-tile')].map((t) =>
       t.querySelector('img') ? 'img' : t.textContent,

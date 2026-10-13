@@ -8,7 +8,7 @@ import { ARCHIVE_CHOICES, type ArchiveAfter } from './archive';
 import type { Settings } from './types';
 
 export const DEFAULT_SETTINGS: Settings = {
-  searchEngine: 'duckduckgo',
+  searchEngine: 'google',
   theme: 'system',
   downloadsFolder: '',
   addressBar: 'sidebar',

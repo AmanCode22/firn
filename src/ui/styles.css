@@ -693,23 +693,10 @@ button {
   transition: background var(--motion);
 }
 
-/* A new download arrives (DownloadRow in Downloads.tsx): its slot opens
-   (the rows around it glide aside), the row rises into it, and a soft wash
-   of the space's color fades from it over a second and a half. Rows that
-   were already there when Firn started are simply there. */
-.download-slot {
-  display: grid;
-  grid-template-rows: 1fr;
-}
-
-.download-slot-inner {
-  min-height: 0;
-}
-
-.download-slot.is-arriving {
-  animation: download-open 260ms ease-out;
-}
-
+/* A new download arrives (DownloadRow in Downloads.tsx): the row rises
+   in, and a soft wash of the space's color fades from it over a couple of
+   seconds. Rows that were already there when Firn started are simply
+   there. */
 .download.is-new {
   animation: download-arrive 320ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
@@ -719,15 +706,9 @@ button {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgb(var(--space-rgb, 128 120 110) / 0.16);
+  background: rgb(var(--space-rgb, 128 120 110) / 0.22);
   pointer-events: none;
-  animation: download-wash 1600ms ease-out 200ms both;
-}
-
-@keyframes download-open {
-  from {
-    grid-template-rows: 0fr;
-  }
+  animation: download-wash 2400ms ease-out 300ms both;
 }
 
 @keyframes download-arrive {
@@ -746,14 +727,9 @@ button {
   }
 }
 
-/* The flake from the page lands: the ring nods (grows a touch and settles).
-   When the file is in, the arrow settles into a file, and a soft ring in
-   the space's color spreads and fades, like the archive box's pulse. */
-.download-icon .is-nodding {
-  display: grid;
-  animation: download-nod 320ms ease-out;
-}
-
+/* As it arrives, and again when the file is in (the arrow settling into a
+   file), a soft ring in the space's color spreads from the icon and fades,
+   like the archive box's pulse. */
 .download-icon .is-settling {
   display: grid;
   animation: download-settle 260ms ease-out;
@@ -768,12 +744,6 @@ button {
   animation: archive-ring 1000ms ease-out 120ms both;
 }
 
-@keyframes download-nod {
-  40% {
-    transform: scale(1.18);
-  }
-}
-
 @keyframes download-settle {
   from {
     opacity: 0;
@@ -782,8 +752,6 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .download-slot.is-arriving,
-  .download-icon .is-nodding,
   .download-icon .is-settling {
     animation: none;
   }
@@ -1250,9 +1218,9 @@ button {
 
 .basecamp-grid {
   display: grid;
-  /* Pins share each row evenly and wrap once tiles would get narrower than
-     this (so 1 pin fills the row, 2 split it, ... about 4 per row at the
-     default sidebar width, more when it's wider). */
+  /* How many tiles a row holds is worked out in Basecamp.tsx
+     (rowSizes): the rows as even as they can be, each tile at least
+     52px wide (about 4 per row at the default sidebar width). Until then: */
   grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
   gap: 6px;
 }
@@ -1508,30 +1476,6 @@ button {
    the page (drawn by the floating layer; src/ui/Floating.tsx). It looks
    like the tab it is, lifted. While it's carried, its row in the sidebar
    waits in its place, faded. */
-/* A download's hand-off (DownloadFlake in Floating.tsx): a small Firn
-   flake (the mark, as the welcome's drifting flakes are drawn), a touch
-   deeper than the space's color so a pale one still shows on a white
-   page, gliding to the sidebar. */
-.download-flight {
-  position: fixed;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-}
-
-.download-flight-flake {
-  width: 16px;
-  height: 16px;
-  margin: -8px 0 0 -8px;
-  background: color-mix(
-    in srgb,
-    rgb(var(--space-rgb, 128 120 110)) 72%,
-    var(--text)
-  );
-  mask: url('./firn-mark.svg') center / contain no-repeat;
-  opacity: 0;
-}
-
 .carried-tab {
   position: fixed;
   top: 0;
@@ -3802,6 +3746,85 @@ button {
 
 .look-pill.is-address {
   fill: var(--fl-pill);
+}
+
+/* Search: three choices side by side (more in Settings). */
+.welcome-engines {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.welcome-engine strong {
+  margin-top: 0;
+}
+
+/* How the sidebar works: a small drawing, its three parts lined up with
+   the words beside them (each row as tall as its part of the drawing). */
+.welcome-guide {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  margin-top: 22px;
+}
+
+.guide-picture {
+  flex-shrink: 0;
+  width: 104px;
+  height: 200px;
+}
+
+.guide-tile {
+  fill: color-mix(in srgb, var(--accent) 34%, var(--fl-tile));
+}
+
+.guide-row,
+.guide-dot {
+  fill: var(--fl-pill);
+}
+
+.guide-row.is-pinned {
+  fill: color-mix(in srgb, var(--fl-pill) 70%, var(--text-faint));
+}
+
+.guide-line {
+  fill: var(--fl-line);
+}
+
+.welcome-guide ul {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.welcome-guide li {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.welcome-guide li strong {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.welcome-guide li.is-basecamp,
+.welcome-guide li.is-tabs {
+  height: 74px;
+}
+
+.welcome-guide li.is-pinned {
+  height: 52px;
+}
+
+.welcome-body .welcome-guide-tip {
+  margin-top: 26px;
 }
 
 /* First space: name, color, icon. */

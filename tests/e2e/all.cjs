@@ -202,7 +202,7 @@ const check = (name, ok, extra = '') => {
       const v = BrowserWindow.getAllWindows()[0].contentView.children.find(
         (c) =>
           c.webContents &&
-          /8765|duckduckgo/.test(c.webContents.getURL()) &&
+          /8765|duckduckgo|google/.test(c.webContents.getURL()) &&
           c.getVisible(),
       );
       return v ? v.getBounds() : null;
@@ -218,7 +218,7 @@ const check = (name, ok, extra = '') => {
       const v = kids.find(
         (c) =>
           c.webContents &&
-          /8765|duckduckgo/.test(c.webContents.getURL()) &&
+          /8765|duckduckgo|google/.test(c.webContents.getURL()) &&
           c.getVisible(),
       );
       const t = kids.find(
@@ -258,7 +258,7 @@ const check = (name, ok, extra = '') => {
       const v = BrowserWindow.getAllWindows()[0].contentView.children.find(
         (c) =>
           c.webContents &&
-          /8765|duckduckgo/.test(c.webContents.getURL()) &&
+          /8765|duckduckgo|google/.test(c.webContents.getURL()) &&
           c.getVisible(),
       );
       return v ? v.getBounds().y : -1;
@@ -313,7 +313,7 @@ const check = (name, ok, extra = '') => {
       const v = kids.find(
         (c) =>
           c.webContents &&
-          /8765|duckduckgo/.test(c.webContents.getURL()) &&
+          /8765|duckduckgo|google/.test(c.webContents.getURL()) &&
           c.getVisible(),
       );
       const t = kids.find(
