@@ -228,7 +228,12 @@ const check = (n, ok, x = '') => {
   );
   check(
     '...and the dropdown list is dark too',
-    listBg === 'rgb(43, 40, 38)',
+    // (Dark page color with a faint touch of the space's: every channel
+    // low, as srgb fractions or 0-255.)
+    (listBg.match(/[\d.]+/g) ?? [])
+      .slice(0, 3)
+      .map(Number)
+      .every((n) => (n <= 1 ? n < 0.3 : n < 80)),
     listBg,
   );
   execSync(
