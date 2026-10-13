@@ -1,6 +1,6 @@
 # What's new in Firn
 
-## Firn 0.8.1
+## Firn 0.9.0
 
 **Drag your favorite sites into Basecamp.**
 
