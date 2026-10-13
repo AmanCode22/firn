@@ -70,6 +70,7 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `glides` | Two glides at once (hiding the sidebar while the address bar moves to the top): the site keeps one layout until both end, then fits |
 | `unreadable` | A damaged saved file (the session, history) is kept aside as a copy, not overwritten; Firn starts fresh |
 | `shutdown` | Windows shutting down (pretended): the session is saved at once |
+| `uiscrollbar` | A long tab list scrolls with the same soft, thin scrollbar as web pages (no arrows); a picture in `out/uiscrollbar.png` |
 
 `site/` is a tiny test website the checks visit (served on this computer
 only). `cdp.cjs`, `playwright.cjs` and `warp.py` are small helpers.

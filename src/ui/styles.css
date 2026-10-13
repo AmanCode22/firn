@@ -125,6 +125,34 @@ body,
   height: 100%;
 }
 
+/* Scrollbars in Firn's own UI (a long tab list, Settings, History): the
+   same soft thumb as on web pages (src/scrollbar.ts), on a see-through
+   track, no arrows; a little wider and darker under the mouse. */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+  background: transparent;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-button {
+  display: none;
+}
+::-webkit-scrollbar-thumb {
+  background-color: rgba(128, 128, 128, 0.45);
+  border: 3px solid transparent;
+  border-radius: 12px;
+  background-clip: padding-box;
+  min-height: 40px;
+}
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background-color: rgba(110, 110, 110, 0.7);
+  border-width: 1.5px;
+}
+
 /* "Drag to move the window" areas (-webkit-app-region).
    On Windows, Electron asks every *visible* layer whether a spot is title
    bar, in the order the layers were created (not the order they're
