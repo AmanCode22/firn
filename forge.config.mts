@@ -7,6 +7,7 @@ import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
+import { MakerFlatpak } from '@electron-forge/maker-flatpak';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
@@ -168,6 +169,34 @@ const config: ForgeConfig = {
     new MakerZIP({}, ['darwin']),
     new MakerRpm({}),
     new MakerDeb({}),
+    new MakerFlatpak({
+      options: {
+        id: 'com.firnbrowser.Firn',
+        productName: 'Firn',
+        genericName: 'Web Browser',
+        categories: ['Network', 'WebBrowser'],
+        runtime: 'org.freedesktop.Platform',
+        runtimeVersion: '23.08',
+        sdk: 'org.freedesktop.Sdk',
+        branch: 'stable',
+        finishArgs: [
+          // Wayland and X11 access
+          '--socket=wayland',
+          '--socket=x11',
+          '--share=ipc',
+          // Internet access
+          '--share=network',
+          // Audio & GPU acceleration
+          '--socket=pulseaudio',
+          '--device=dri',
+          // File system access for downloads
+          '--filesystem=xdg-download',
+          '--filesystem=xdg-documents:ro',
+          // Notification support
+          '--talk-name=org.freedesktop.Notifications',
+        ],
+      },
+    }),
   ],
   plugins: [
     new VitePlugin({
