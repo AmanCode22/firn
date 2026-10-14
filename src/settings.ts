@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   downloadsFolder: '',
   askWhereToSave: false,
+  searchSuggestions: 'ask',
   addressBar: 'sidebar',
   safeBrowsing: true,
   adBlocking: true,
@@ -55,6 +56,12 @@ export function cleanSettings(changes: unknown, current: Settings): Settings {
       typeof c.askWhereToSave === 'boolean'
         ? c.askWhereToSave
         : current.askWhereToSave,
+    searchSuggestions:
+      c.searchSuggestions === 'ask' ||
+      c.searchSuggestions === 'on' ||
+      c.searchSuggestions === 'off'
+        ? c.searchSuggestions
+        : current.searchSuggestions,
     addressBar:
       c.addressBar === 'sidebar' || c.addressBar === 'top'
         ? c.addressBar

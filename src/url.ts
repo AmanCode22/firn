@@ -2,14 +2,35 @@
 
 // The search engines to choose from in settings (DuckDuckGo by default:
 // it doesn't track you).
+// `suggest`: where the engine offers suggestions as you type (only asked
+// with "Search suggestions" on; see suggestSearches in src/main.ts). Each
+// answers in the OpenSearch shape: ["what was typed", ["suggestion", …]].
 export const SEARCH_ENGINES = {
-  duckduckgo: { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=' },
-  google: { name: 'Google', url: 'https://www.google.com/search?q=' },
-  bing: { name: 'Bing', url: 'https://www.bing.com/search?q=' },
-  ecosia: { name: 'Ecosia', url: 'https://www.ecosia.org/search?q=' },
+  duckduckgo: {
+    name: 'DuckDuckGo',
+    url: 'https://duckduckgo.com/?q=',
+    suggest: 'https://duckduckgo.com/ac/?type=list&q=',
+  },
+  google: {
+    name: 'Google',
+    url: 'https://www.google.com/search?q=',
+    suggest:
+      'https://suggestqueries.google.com/complete/search?client=firefox&q=',
+  },
+  bing: {
+    name: 'Bing',
+    url: 'https://www.bing.com/search?q=',
+    suggest: 'https://api.bing.com/osjson.aspx?query=',
+  },
+  ecosia: {
+    name: 'Ecosia',
+    url: 'https://www.ecosia.org/search?q=',
+    suggest: 'https://ac.ecosia.org/autocomplete?type=list&q=',
+  },
   startpage: {
     name: 'Startpage',
     url: 'https://www.startpage.com/do/search?q=',
+    suggest: 'https://www.startpage.com/suggestions?format=opensearch&q=',
   },
 } as const;
 export type SearchEngine = keyof typeof SEARCH_ENGINES;

@@ -183,6 +183,36 @@ export function Welcome({
               </button>
             ))}
           </div>
+          {/* Asked here once; nothing is sent until the answer is yes (also
+              in Settings > Search, and asked in the command bar if skipped). */}
+          <div className="welcome-suggest" data-testid="welcome-suggest">
+            <span>
+              Show suggestions as you type?
+              <small>Your search engine sees what you type.</small>
+            </span>
+            <div className="segmented" role="radiogroup">
+              {(
+                [
+                  ['on', 'Yes'],
+                  ['off', 'No'],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  role="radio"
+                  aria-checked={settings?.searchSuggestions === value}
+                  className={
+                    settings?.searchSuggestions === value ? 'is-on' : ''
+                  }
+                  onClick={() =>
+                    window.firn.updateSettings({ searchSuggestions: value })
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
         </>
       );
       break;

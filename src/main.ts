@@ -46,9 +46,11 @@ import type { PermissionKind, PermissionRequest } from './engine/engine';
 import { parseKey, PERMISSION_WORDING, SitePermissions } from './permissions';
 import { History } from './history';
 import {
+  isSearch,
   SEARCH_ENGINES,
   searchUrl,
   setSearchEngine,
+  toNavigableUrl,
   type SearchEngine,
 } from './url';
 import { isLiquidGlass, pageRadius } from './frame';
@@ -317,18 +319,17 @@ async function fetchCapped(
   {
     keepStart = false,
     credentials,
+    timeout = FETCH_TIMEOUT_MS,
   }: {
     keepStart?: boolean;
     credentials?: RequestCredentials;
+    timeout?: number;
   } = {},
 ) {
   const stop = new AbortController();
   const response = await session.defaultSession.fetch(url, {
     credentials,
-    signal: AbortSignal.any([
-      stop.signal,
-      AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    ]),
+    signal: AbortSignal.any([stop.signal, AbortSignal.timeout(timeout)]),
   });
   if (!response.ok) {
     stop.abort();
@@ -359,6 +360,9 @@ async function fetchCapped(
 
 // How long a favicon or a page read for the welcome may take.
 const FETCH_TIMEOUT_MS = 8000;
+// Search suggestions come quickly or not at all (they're only useful while
+// typing).
+const SUGGEST_TIMEOUT_MS = 2000;
 
 // Downloads a favicon and returns it as a data: URL (or null). Small images
 // only, quickly; anything else is ignored.
@@ -3414,6 +3418,49 @@ const createWindow = () => {
   ipcMain.handle('command:tabs', (event: IpcMainInvokeEvent) =>
     uiContents.includes(event.sender) ? tabs.allTabs() : [],
   );
+  // The search engine's suggestions as you type, only with "Search
+  // suggestions" on (asked first: the welcome, or the command bar once).
+  // Never for something that looks like an address, sent without cookies
+  // (so not tied to a signed-in account), small and quick or not at all.
+  // FIRN_SUGGEST_TEST points it at a test server, for the suggest check.
+  const suggestSearches = async (query: string): Promise<string[]> => {
+    const q = query.trim().slice(0, 200);
+    if (settings.searchSuggestions !== 'on' || !q) return [];
+    const url = toNavigableUrl(q);
+    if (!url || !isSearch(url)) return [];
+    const base =
+      process.env.FIRN_SUGGEST_TEST ??
+      SEARCH_ENGINES[settings.searchEngine]?.suggest;
+    if (!base) return [];
+    try {
+      const got = await fetchCapped(base + encodeURIComponent(q), 64 * 1024, {
+        credentials: 'omit',
+        timeout: SUGGEST_TIMEOUT_MS,
+      });
+      const data: unknown = got && JSON.parse(got.body.toString('utf8'));
+      const list = Array.isArray(data) && Array.isArray(data[1]) ? data[1] : [];
+      return [
+        ...new Set(
+          list
+            .filter((s): s is string => typeof s === 'string')
+            .map((s) => s.trim())
+            .filter(
+              (s) =>
+                s && s.length <= 200 && s.toLowerCase() !== q.toLowerCase(),
+            ),
+        ),
+      ].slice(0, 4);
+    } catch {
+      return [];
+    }
+  };
+  ipcMain.handle(
+    'search:suggest',
+    (event: IpcMainInvokeEvent, query: unknown) =>
+      uiContents.includes(event.sender) && typeof query === 'string'
+        ? suggestSearches(query)
+        : [],
+  );
   ipcMain.handle(
     'history:search',
     (event: IpcMainInvokeEvent, query: unknown) =>
@@ -3741,6 +3788,7 @@ const createWindow = () => {
     ipcMain.removeHandler('welcome:icon');
     ipcMain.removeHandler('command:tabs');
     ipcMain.removeHandler('history:search');
+    ipcMain.removeHandler('search:suggest');
     ipcMain.removeHandler('history:list');
     ipcMain.removeHandler('archive:list');
     ipcMain.removeHandler('passwords:list');

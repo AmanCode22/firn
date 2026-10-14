@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { isSearch, SEARCH_ENGINES, toNavigableUrl } from '../url';
 import type {
   ArchivedTab,
@@ -19,6 +19,7 @@ import type {
 } from '../types';
 import { TabIcon, tabTitle } from './TabList';
 import { Welcome } from './Welcome';
+import { completeAddress } from './complete';
 import {
   ActionIcon,
   AppIcon,
@@ -129,6 +130,7 @@ export function Floating() {
         activeTabId={activeTabId}
         spaces={spaces}
         beside={overlay.beside}
+        settings={settings?.settings}
       />
     );
   }
@@ -290,6 +292,7 @@ interface Action {
 
 type Result =
   | { kind: 'go'; input: string; search: boolean }
+  | { kind: 'suggest'; text: string }
   | { kind: 'tab'; tab: AnyTab }
   | { kind: 'history'; entry: HistoryEntry }
   | { kind: 'action'; action: Action };
@@ -301,7 +304,9 @@ const resultKey = (r: Result) =>
       ? `history:${r.entry.url}`
       : r.kind === 'action'
         ? `action:${r.action.action}:${r.action.arg ?? ''}`
-        : 'go';
+        : r.kind === 'suggest'
+          ? `suggest:${r.text}`
+          : 'go';
 
 // Every word typed appears somewhere in `text`.
 const matches = (text: string, words: string[]) => {
@@ -422,12 +427,18 @@ function actionsFor(
 
 function buildResults({
   query,
+  input = query,
+  suggestions = [],
   shownTabs,
   allTabs,
   history,
   actions,
 }: {
   query: string;
+  // What the box shows (the typed text, or an address completed from it).
+  input?: string;
+  // The search engine's suggestions (with "Search suggestions" on).
+  suggestions?: string[];
   shownTabs: TabView[];
   allTabs: AnyTab[];
   history: HistoryEntry[];
@@ -440,9 +451,10 @@ function buildResults({
       .slice(0, 6)
       .map((tab) => ({ kind: 'tab', tab: tab as AnyTab }));
 
-  const url = toNavigableUrl(q);
+  const target = input.trim();
+  const url = toNavigableUrl(target);
   const go: Result[] = url
-    ? [{ kind: 'go', input: q, search: isSearch(url) }]
+    ? [{ kind: 'go', input: target, search: isSearch(url) }]
     : [];
   const words = q.toLowerCase().split(/\s+/).filter(Boolean);
   const tabs = allTabs
@@ -462,6 +474,7 @@ function buildResults({
           .slice(0, 3);
   return [
     ...go,
+    ...suggestions.map((text): Result => ({ kind: 'suggest', text })),
     ...tabs.map((tab): Result => ({ kind: 'tab', tab })),
     ...doable.map((action): Result => ({ kind: 'action', action })),
     ...pages.map((entry): Result => ({ kind: 'history', entry })),
@@ -470,6 +483,7 @@ function buildResults({
 
 function runResult(result: Result) {
   if (result.kind === 'go') window.firn.openUrl(result.input);
+  else if (result.kind === 'suggest') window.firn.openUrl(result.text);
   else if (result.kind === 'tab') window.firn.activateTab(result.tab.id);
   else if (result.kind === 'history') window.firn.openUrl(result.entry.url);
   else window.firn.runAction(result.action.action, result.action.arg);
@@ -477,22 +491,32 @@ function runResult(result: Result) {
 
 const shortUrl = (url: string) => url.replace(/^https?:\/\/(www\.)?/i, '');
 
+// Search suggestions are asked for once typing pauses this long.
+const SUGGEST_AFTER_MS = 150;
+
 function CommandBar({
   tabs,
   activeTabId,
   spaces,
   beside,
+  settings,
 }: {
   tabs: TabView[];
   activeTabId: string | null;
   spaces: SpacesState;
   beside?: string;
+  settings?: Settings;
 }) {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
   const [allTabs, setAllTabs] = useState<AnyTab[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Off just after deleting, so Backspace doesn't bring it straight back.
+  // (Noted on the key, applied once the text has changed: taking the
+  // completion away before the key acts would delete a typed letter too.)
+  const [completing, setCompleting] = useState(true);
+  const deleting = useRef(false);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -510,23 +534,85 @@ function CommandBar({
     };
   }, [query]);
 
+  // An address completed from history and open tabs (src/ui/complete.ts),
+  // shown in the box with the added part selected.
+  const completion = useMemo(
+    () =>
+      completing
+        ? completeAddress(query, [
+            ...history.map((h) => h.url),
+            ...allTabs.map((t) => t.url),
+          ])
+        : null,
+    [completing, query, history, allTabs],
+  );
+  // The search engine's suggestions, with "Search suggestions" on: asked a
+  // moment after typing stops (not on every letter), the newest wins.
+  // Firn's main process decides what may be sent (never an address).
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const suggesting = settings?.searchSuggestions === 'on';
+  useEffect(() => {
+    const q = query.trim();
+    if (!suggesting || !q || completion) {
+      setSuggestions([]);
+      return;
+    }
+    let current = true;
+    const timer = setTimeout(
+      () =>
+        window.firn
+          .suggestSearches(q)
+          .then((list) => current && setSuggestions(list)),
+      SUGGEST_AFTER_MS,
+    );
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [query, suggesting, completion]);
+
+  useLayoutEffect(() => {
+    const input = inputRef.current;
+    if (completion && input && document.activeElement === input)
+      input.setSelectionRange(query.length, completion.length);
+  }, [completion, query]);
+
   const active = tabs.find((t) => t.id === activeTabId);
   const results = useMemo(
     () =>
       buildResults({
         query,
+        input: completion ?? query,
+        suggestions,
         shownTabs: tabs,
         allTabs,
         history,
         // Opening something beside a tab: actions don't apply.
         actions: beside ? [] : actionsFor(active, spaces),
       }),
-    [query, tabs, allTabs, history, beside, active, spaces],
+    [
+      query,
+      completion,
+      suggestions,
+      tabs,
+      allTabs,
+      history,
+      beside,
+      active,
+      spaces,
+    ],
   );
   const current = Math.min(selected, results.length - 1);
   const spaceOf = (id: string) => spaces.spaces.find((s) => s.id === id);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
+    // Deleting takes the completion away; typing on brings it back.
+    deleting.current = e.key === 'Backspace' || e.key === 'Delete';
+    // Right arrow or End keeps it, as typed.
+    if ((e.key === 'ArrowRight' || e.key === 'End') && completion) {
+      setQuery(completion);
+      return;
+    }
     if (e.key === 'Escape') {
       window.firn.closeOverlay();
     } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -562,8 +648,9 @@ function CommandBar({
                 ? `Open beside “${beside.length > 32 ? `${beside.slice(0, 30)}…` : beside}”`
                 : 'Search, enter an address, or type a command'
             }
-            value={query}
+            value={completion ?? query}
             onChange={(e) => {
+              setCompleting(!deleting.current);
               setQuery(e.target.value);
               setSelected(0);
             }}
@@ -590,6 +677,36 @@ function CommandBar({
             ))}
           </ul>
         )}
+
+        {/* Asked once, the first time something is typed (unless the
+            welcome asked already). Nothing is sent until the answer is yes. */}
+        {settings?.searchSuggestions === 'ask' && query.trim() && (
+          <div className="command-ask" data-testid="suggest-ask">
+            <span>
+              Show suggestions from{' '}
+              {SEARCH_ENGINES[settings.searchEngine]?.name ?? 'your search'} as
+              you type? It sees what you type.
+            </span>
+            <button
+              className="sheet-button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() =>
+                window.firn.updateSettings({ searchSuggestions: 'on' })
+              }
+            >
+              Show suggestions
+            </button>
+            <button
+              className="sheet-button is-quiet"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() =>
+                window.firn.updateSettings({ searchSuggestions: 'off' })
+              }
+            >
+              No thanks
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -604,6 +721,16 @@ function ResultRow({
   spaceOf: (id: string) => Space | undefined;
   activeSpaceId: string;
 }) {
+  if (result.kind === 'suggest')
+    return (
+      <>
+        <span className="tab-icon">
+          <SearchIcon />
+        </span>
+        <span className="result-title">{result.text}</span>
+        <span className="result-action">Search</span>
+      </>
+    );
   if (result.kind === 'go')
     return (
       <>
@@ -1358,6 +1485,41 @@ function SettingsPanel({ state }: { state: SettingsState | null }) {
                     change({ searchEngine: value as Settings['searchEngine'] })
                   }
                 />
+              </div>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span>Search suggestions</span>
+                  <small>
+                    Suggestions as you type. Your search engine sees what you
+                    type.
+                  </small>
+                </div>
+                <div
+                  className="segmented"
+                  role="radiogroup"
+                  data-testid="search-suggestions"
+                >
+                  {(
+                    [
+                      ['on', 'On'],
+                      ['off', 'Off'],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      role="radio"
+                      aria-checked={state.settings.searchSuggestions === value}
+                      className={
+                        state.settings.searchSuggestions === value
+                          ? 'is-on'
+                          : ''
+                      }
+                      onClick={() => change({ searchSuggestions: value })}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </section>
 

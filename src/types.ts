@@ -110,6 +110,10 @@ export interface Settings {
   searchEngine: 'duckduckgo' | 'google' | 'bing' | 'ecosia' | 'startpage';
   theme: 'system' | 'light' | 'dark';
   downloadsFolder: string;
+  // Suggestions from the search engine as you type in the command bar:
+  // 'ask' until the person has answered (the welcome's search step, or the
+  // command bar once), then 'on' or 'off'. Only 'on' sends anything.
+  searchSuggestions: 'ask' | 'on' | 'off';
   // Ask where to save each download (the system's Save dialog), instead of
   // saving straight to the folder above.
   askWhereToSave: boolean;
@@ -434,6 +438,9 @@ export interface FirnBridge {
   // quick actions (`arg` is a space id for 'switch-space').
   allTabs(): Promise<(TabView & { spaceId: string })[]>;
   searchHistory(query: string): Promise<HistoryEntry[]>;
+  // The search engine's suggestions for what's typed (none unless "Search
+  // suggestions" is on, or when it looks like an address).
+  suggestSearches(query: string): Promise<string[]>;
   // The history panel: pages visited (newest first), forgetting one, and
   // the "Clear history" menu (last hour, today, all time).
   listHistory(query: string): Promise<HistoryEntry[]>;

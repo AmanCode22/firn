@@ -148,6 +148,26 @@ const settings = () => {
         .then((names) => names.join(',') === 'Google,DuckDuckGo,Bing')),
     settings().searchEngine,
   );
+  // Suggestions as you type: asked here, neither answer picked yet.
+  const suggestPicked = () =>
+    fl.evaluate(
+      () =>
+        document.querySelector(
+          '[data-testid="welcome-suggest"] [aria-checked="true"]',
+        )?.textContent ?? null,
+    );
+  const unanswered = await suggestPicked();
+  shot('welcome-search');
+  await fl.click('[data-testid="welcome-suggest"] button:has-text("Yes")');
+  await wait(400);
+  check(
+    '...and asks about suggestions as you type: "Yes" is saved',
+    unanswered === null && settings().searchSuggestions === 'on',
+    `${unanswered} → ${settings().searchSuggestions}`,
+  );
+  // (No, so later checks send nothing to a real search engine.)
+  await fl.click('[data-testid="welcome-suggest"] button:has-text("No")');
+  await wait(300);
   await fl.click('[data-testid="welcome-engine"]:has-text("DuckDuckGo")');
   await wait(500);
   check(

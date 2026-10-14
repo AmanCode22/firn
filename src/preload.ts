@@ -36,6 +36,7 @@ const bridge: FirnBridge = {
   retryDownload: (id) => ipcRenderer.send('downloads:retry', id),
   allTabs: () => ipcRenderer.invoke('command:tabs'),
   searchHistory: (query) => ipcRenderer.invoke('history:search', query),
+  suggestSearches: (query) => ipcRenderer.invoke('search:suggest', query),
   listHistory: (query) => ipcRenderer.invoke('history:list', query),
   removeHistory: (url) => ipcRenderer.send('history:remove', url),
   showClearHistoryMenu: () => ipcRenderer.send('history:clear-menu'),
