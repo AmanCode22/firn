@@ -65,7 +65,7 @@ const check = (n, ok, x = '') => {
   shot('panel-glacier');
   check(
     'the command bar takes a faint touch of the space color',
-    !!glacier.panel && !/251, 250, 248\)$/.test(glacier.panel),
+    !!glacier.panel && !glacier.panel.endsWith('251, 250, 248)'),
     JSON.stringify(glacier),
   );
   check(

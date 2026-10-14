@@ -79,7 +79,7 @@ jobs:
       fail-fast: false
       matrix: '${{ fromJson(needs.prepare.outputs.matrix) }}'
     runs-on: '${{ matrix.os }}'
-    environment: '${{ matrix.environment != '''' && matrix.environment || null }}'
+    environment: "${{ matrix.environment != '' && matrix.environment || null }}"
     permissions:
       contents: read
       id-token: write

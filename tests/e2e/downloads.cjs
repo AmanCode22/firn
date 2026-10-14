@@ -132,7 +132,7 @@ const server = http
     r[0].name === 'big.bin' &&
       r[0].state === 'is-progress' &&
       r[0].ring &&
-      / of 2\.0 MB$/.test(r[0].detail),
+      r[0].detail.endsWith(' of 2.0 MB'),
     JSON.stringify(r[0]),
   );
   execSync(`import -window root -crop 300x900+0+0 ${SP}/dl-progress.png`);
