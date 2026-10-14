@@ -49,32 +49,41 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
 
+  prepare:
+    name: Resolve Target Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - id: set-matrix
+        shell: bash
+        run: |
+          TARGET="${{ inputs.os || 'all' }}"
+          
+          WINDOWS='{"name":"Windows","os":"windows-latest","make":"npm run make","environment":"windows-signing"}'
+          MACOS='{"name":"macOS","os":"macos-26","make":"npm run make -- --arch=universal","environment":""}'
+          LINUX='{"name":"Linux","os":"ubuntu-latest","make":"npm run make","environment":""}'
+          
+          if [ "$TARGET" = "Windows" ]; then
+            JSON="[$WINDOWS]"
+          elif [ "$TARGET" = "macOS" ]; then
+            JSON="[$MACOS]"
+          elif [ "$TARGET" = "Linux" ]; then
+            JSON="[$LINUX]"
+          else
+            JSON="[$WINDOWS,$MACOS,$LINUX]"
+          fi
+          
+          echo "matrix={\"include\":$JSON}" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build for ${{ matrix.name }}
-    needs: check
-    if: >-
-      github.event_name != 'workflow_dispatch' ||
-      inputs.os == 'all' ||
-      inputs.os == matrix.name
+    needs: [check, prepare]
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - name: Windows
-            os: windows-latest
-            make: npm run make
-            environment: windows-signing
-          - name: macOS
-            # macOS 26 with Xcode 26: needed to compile the Liquid Glass app icon
-            os: macos-26
-            make: npm run make -- --arch=universal
-            environment: ''
-          - name: Linux
-            os: ubuntu-latest
-            make: npm run make
-            environment: ''
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
-    environment: ${{ matrix.environment }}
+    environment: ${{ matrix.environment != '' && matrix.environment || null }}
     permissions:
       contents: read
       id-token: write
