@@ -25,7 +25,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadSession, SaveScheduler, saveSession, sessionPath } from './store';
-import type { Page, PageContextMenu } from './engine/engine';
+import type { Page, PageContextMenu, Referrer } from './engine/engine';
 import { ElectronEngine } from './engine/electron';
 import { Downloads } from './downloads';
 import { PasswordStore } from './passwords';
@@ -1791,7 +1791,7 @@ const createWindow = () => {
       sendNav();
     },
     onEmpty: () => openCommandBar(),
-    onLookout: (url) => openLookout(url),
+    onLookout: (url, referrer) => openLookout(url, referrer),
     onVisit: (url, title, favicon, newVisit) =>
       history.visit(url, title, favicon, newVisit),
     onFindResult: (result) => {
@@ -1860,10 +1860,10 @@ const createWindow = () => {
     });
   };
 
-  const openLookout = (url: string) => {
+  const openLookout = (url: string, referrer?: Referrer) => {
     // Already open: show the new link in the same panel.
     if (lookout) {
-      lookout.page.load(url);
+      lookout.page.load(url, referrer);
       return;
     }
     if (overlay.mode !== 'hidden') hideOverlay();
@@ -1874,8 +1874,9 @@ const createWindow = () => {
       },
       onNavigationStart: () => {},
       // Links in the preview that ask for a new tab open one quietly.
-      onOpenTab: (link) => void tabs.create(link, { activate: false }),
-      onLookout: (link) => page.load(link),
+      onOpenTab: (link, _background, referrer) =>
+        void tabs.create(link, { activate: false, referrer }),
+      onLookout: (link, referrer) => page.load(link, referrer),
       onFullscreen: () => {},
       onFocus: () => {},
       onFindResult: () => {},
@@ -1885,7 +1886,7 @@ const createWindow = () => {
       onLogin: () => {},
     });
     lookout = { page, favicon: '', openId: ++commandOpenId, shown: false };
-    page.load(url);
+    page.load(url, referrer);
     page.place(lookoutPanel(), LOOKOUT_RADIUS);
     sendLookout('open');
     // Show the page once the stand-in panel has scaled in.
@@ -2334,6 +2335,7 @@ const createWindow = () => {
       tabs.create(url, {
         after: tabId ?? undefined,
         activate: activate && !!tabId,
+        referrer: menu.referrer,
       });
 
     if (menu.isEditable && menu.misspelledWord)
@@ -2352,7 +2354,9 @@ const createWindow = () => {
         {
           label: 'Open link in Lookout',
           click: () =>
-            tabId ? openLookout(menu.linkUrl) : page.load(menu.linkUrl),
+            tabId
+              ? openLookout(menu.linkUrl, menu.referrer)
+              : page.load(menu.linkUrl, menu.referrer),
         },
         {
           label: 'Copy link',

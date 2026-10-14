@@ -26,6 +26,7 @@ import type {
   PageBounds,
   PageEngine,
   PageEvents,
+  Referrer,
 } from './engine';
 
 // Web pages, and the popup windows they open (e.g. "Sign in with Google"),
@@ -525,8 +526,18 @@ class ElectronPage implements Page {
     });
   }
 
-  load(url: string) {
-    this.web.loadURL(url);
+  load(url: string, referrer?: Referrer) {
+    this.web.loadURL(
+      url,
+      referrer?.url
+        ? {
+            httpReferrer: {
+              url: referrer.url,
+              policy: referrer.policy as Electron.Referrer['policy'],
+            },
+          }
+        : undefined,
+    );
   }
 
   restoreHistory(history: SavedHistory) {
@@ -770,10 +781,10 @@ class ElectronPage implements Page {
     // Real popup windows (sign-in flows and the like, which a page opens
     // with a size or other window features) stay popups so they keep
     // working.
-    web.setWindowOpenHandler(({ url, disposition, features }) => {
+    web.setWindowOpenHandler(({ url, disposition, features, referrer }) => {
       const isWeb = /^https?:/i.test(url);
       if (disposition === 'new-window' && !features && isWeb) {
-        events().onLookout(url);
+        events().onLookout(url, referrer);
         return { action: 'deny' };
       }
       if (disposition === 'new-window') {
@@ -785,7 +796,9 @@ class ElectronPage implements Page {
           },
         };
       }
-      if (isWeb) events().onOpenTab(url, disposition === 'background-tab');
+      // (With where it was followed from, as a link opened in Chrome.)
+      if (isWeb)
+        events().onOpenTab(url, disposition === 'background-tab', referrer);
       return { action: 'deny' };
     });
 
@@ -796,6 +809,7 @@ class ElectronPage implements Page {
     web.on('context-menu', (_event, params) =>
       events().onContextMenu({
         linkUrl: params.linkURL,
+        referrer: params.referrerPolicy,
         imageUrl: params.mediaType === 'image' ? params.srcURL : '',
         selectionText: params.selectionText,
         isEditable: params.isEditable,
