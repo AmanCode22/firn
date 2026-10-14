@@ -179,6 +179,7 @@ const config: ForgeConfig = {
         runtimeVersion: '23.08',
         sdk: 'org.freedesktop.Sdk',
         branch: 'stable',
+	files: [],
         finishArgs: [
           // Wayland and X11 access
           '--socket=wayland',
