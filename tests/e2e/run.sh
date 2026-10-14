@@ -12,7 +12,7 @@ export SP="$E2E/out"
 mkdir -p "$SP"
 DATA="$HOME/.config/Firn"
 
-ALL="all settings perm ctxmenu lookout addrtop downloads passwords safebrowsing welcome brand bottom updates macmenu basecamp whatsnew adblock defaultbrowser tooltips sound player splitdrag realdrag splithandle shortcuts demo archive installer mactips restore splitpin updatestatus topedge sleep downloadfx useragent basecampdrag pinclose appregion soundgaps paneltint fullscreen glides unreadable shutdown uiscrollbar favicon saveas complete suggest referrer"
+ALL="all settings perm ctxmenu lookout addrtop downloads passwords safebrowsing welcome brand bottom updates macmenu basecamp whatsnew adblock defaultbrowser tooltips sound player splitdrag realdrag splithandle shortcuts demo archive installer mactips restore splitpin updatestatus topedge sleep downloadfx useragent basecampdrag pinclose appregion soundgaps paneltint fullscreen glides unreadable shutdown uiscrollbar favicon saveas complete suggest referrer peekleave"
 CHECKS="${*:-$ALL}"
 
 cleanup() {

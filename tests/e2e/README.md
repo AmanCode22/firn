@@ -76,6 +76,7 @@ Screenshots and logs land in `tests/e2e/out/` (not saved in Git).
 | `complete` | The command bar completes an address from history and open tabs ("git" → github.com, the added part selected); typing on, Backspace, Enter, and a search with a space |
 | `suggest` | Search suggestions: asked once before anything is sent; on, the engine's suggestions (a test server) show, sent without cookies, never for an address; off, nothing sent |
 | `referrer` | A link opening a new tab (or Lookout) tells the site where it came from, as Chrome does: an image server that sends visitors without one back to the post (as Reddit's does) opens the picture |
+| `peekleave` | The peeking sidebar tucks away once a real mouse leaves the window (below it, or off to its left onto the desktop); a small slip past the left edge keeps it out |
 
 `site/` is a tiny test website the checks visit (served on this computer
 only). `cdp.cjs`, `playwright.cjs` and `warp.py` are small helpers.

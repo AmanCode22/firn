@@ -170,9 +170,13 @@ const SLEEP_CHECK_MS = SLEEP_TEST ? 1000 : 5 * 60 * 1000;
 const PEEK_RIGHT_SLACK = 8;
 const PEEK_LINGER_MS = 120;
 // ...and to the left, past the window's edge, it stays out for this far
-// (and a little longer once the mouse goes beyond it).
+// (and a little longer once the mouse goes beyond it), where that edge is
+// the screen's own (a maximized or snapped window: the mouse overshooting
+// onto another screen). Elsewhere, off the window (the desktop, another
+// app, the taskbar below), it only forgives a small slip.
 const PEEK_LEFT_SLACK = 200;
 const PEEK_LEFT_LINGER_MS = 400;
+const PEEK_OFF_WINDOW_SLACK = 24;
 // A UI panel that hasn't reported it started within this long is reloaded.
 const UI_START_TIMEOUT_MS = 5000;
 
@@ -2090,11 +2094,14 @@ const createWindow = () => {
   // position, like the top bar, since its top row moves the window).
   const mouseIsOverPeek = () => {
     const { x, y, height } = cursorInWindow();
+    const content = win.getContentBounds();
+    const atScreenEdge =
+      content.x <= screen.getDisplayMatching(content).bounds.x;
     return (
-      x >= -PEEK_LEFT_SLACK &&
+      x >= -(atScreenEdge ? PEEK_LEFT_SLACK : PEEK_OFF_WINDOW_SLACK) &&
       x <= windowState.sidebarWidth + PEEK_RIGHT_SLACK &&
-      y >= -200 &&
-      y <= height + 200
+      y >= -PEEK_OFF_WINDOW_SLACK &&
+      y <= height + PEEK_OFF_WINDOW_SLACK
     );
   };
 
