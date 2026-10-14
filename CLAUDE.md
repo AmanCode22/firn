@@ -257,6 +257,10 @@ The "guts to say no" list. Don't add these without David asking again.
 
 ## How to work on this project (instructions for Claude)
 
+- **Pick the model before starting** (David is on the Pro plan and wants his limits to last the week). Before starting any task, say in one line which model it needs and why: "Sonnet is fine: <reason>" or "This needs Opus: <reason>. Switch with /model, then say go." If it needs Opus and you're running Sonnet, stop and wait. If you're running Opus and Sonnet would do, say so and wait, so David can switch. Don't start the work until the model fits. If a Sonnet task turns out harder than it looked (the first fix didn't work, the cause isn't clear, it spreads across many files), stop and say so rather than guessing on.
+  - **Sonnet:** release prep (version bump, CHANGELOG entry), Electron patch updates, copy and wording changes, README edits, small style tweaks in styles.css, a setting or menu item following an existing pattern, adding or updating a check, a bug in one place with a clear cause, renames and tidying, answering questions about the code.
+  - **Opus:** new features that touch several files or the main process (like split-view dragging or archiving), anything security-related (passwords, page-preload.ts, permissions, the sandbox and preload bridge, the request blocker, signing), platform bugs that need investigating (Windows or Mac only, like the blank page after minimizing), performance work, the engine layer and data model, the build and release pipeline, and "look back" reviews.
+  - When unsure, say which way it leans and why, in one line, and let David pick.
 - **Only work in dwurgy/firn.** The website (dwurgy/firn-site) has its own separate Claude Code session. Never attach, clone, or change another repository; if a task touches the website, tell David so he can take it there.
 - Work in **small steps**: one feature at a time, then stop so David can run the app and look at it.
 - After each step, say in plain words what changed and how to test it.
