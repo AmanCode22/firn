@@ -68,6 +68,7 @@ const windowsSign =
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    executableName: 'firn',
     // Firn's app icon (Glacier). The packager adds the extension for each
     // system: assets/icon.ico on Windows (the Windows icon from
     // brand/app-icons/firn-app-icon-windows-glacier.ico) and
