@@ -174,7 +174,7 @@ const config: ForgeConfig = {
         id: 'com.firnbrowser.Firn',
         productName: 'Firn',
         genericName: 'Web Browser',
-        categories: ['Network', 'WebBrowser'],
+        categories: ['Network'],
         runtime: 'org.freedesktop.Platform',
         runtimeVersion: '23.08',
         sdk: 'org.freedesktop.Sdk',
