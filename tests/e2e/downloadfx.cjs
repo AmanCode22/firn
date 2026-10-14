@@ -83,6 +83,9 @@ const server = http
         ),
         pulse: !!el.querySelector('.download-pulse'),
         settling: !!el.querySelector('.is-settling'),
+        // Icons in the row's icon spot (one, never two stacked).
+        icons: el.querySelectorAll('.download-icon > :not(.download-pulse)')
+          .length,
         inside: box.right <= sidebar.right + 0.5,
         buttonInside: !!last && last.right <= sidebar.right + 0.5,
         widths: `${Math.round(box.width)} in ${Math.round(sidebar.width)}`,
@@ -125,6 +128,13 @@ const server = http
   check(
     '...and when it finishes, the file settles in with the ring',
     r?.state === 'is-done' && r.pulse && r.settling && r.inside,
+    JSON.stringify(r),
+  );
+  await wait(1500);
+  r = await row();
+  check(
+    '...one file icon, not two stacked',
+    r?.state === 'is-done' && r.icons === 1,
     JSON.stringify(r),
   );
 
