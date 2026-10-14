@@ -1,32 +1,12 @@
-# Builds Firn for Windows and macOS on GitHub's own computers.
+# Builds Firn for Windows, macOS, and Linux (including Flatpak) on GitHub's own computers.
 #
 # - Every push (to main, and to a pull request's branch): checks the code,
-#   then builds "Firn Setup.exe" (Windows) and a .zip with Firn.app (macOS,
-#   one app for Apple-silicon and Intel Macs). Download them from the run's page under
-#   "Artifacts" (kept for 30 days).
-# - Publishing a release on GitHub (tag "v" + the version in package.json,
-#   e.g. v0.1.0): builds both and attaches them to the release's page, the
-#   public download page to share.
-#
-# The Safe Browsing key comes from the repository secret
-# FIRN_SAFE_BROWSING_KEY (Settings > Secrets and variables > Actions).
-# Without it, the builds simply don't warn about scam sites.
-#
-# The Mac build signs Firn with the "Developer ID Application" certificate
-# and has Apple notarize it, from these repository secrets:
-# MAC_CERTIFICATE_P12 (the .p12 file, as base64 text),
-# MAC_CERTIFICATE_PASSWORD, APPLE_API_KEY_P8 (the App Store Connect key's
-# text), APPLE_API_KEY_ID, APPLE_API_ISSUER, and APPLE_TEAM_ID. Without
-# them, a push still builds a Mac app with a basic ("ad-hoc") signature,
-# but a release refuses to build.
-#
-# The Windows build signs Firn with David's certificate from Azure Artifact
-# Signing (account "firn-signing" in West US 2, certificate profile
-# "firn-browser"). It signs in to Azure with no stored password: GitHub
-# vouches for this job, run in the "windows-signing" environment, which
-# Azure trusts. The repository secrets AZURE_CLIENT_ID, AZURE_TENANT_ID,
-# and AZURE_SUBSCRIPTION_ID say which Azure app and account. Without them,
-# a push builds an unsigned Firn; a release refuses to build.
+#   then builds "Firn Setup.exe" (Windows), a .zip with Firn.app (macOS),
+#   and Linux installers (.deb, .rpm, .flatpak). Download them from the
+#   run's page under "Artifacts" (kept for 30 days).
+# - Publishing a release on GitHub (tag "v" + the version in package.json):
+#   builds all platforms and attaches them to the release's page.
+# - Manual run (workflow_dispatch): allows selecting a single target OS or "all".
 
 name: Build
 
@@ -36,11 +16,21 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      os:
+        description: 'Target Operating System'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - Windows
+          - macOS
+          - Linux
 
 permissions:
   contents: read
 
-# A newer push to the same branch replaces an older run.
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
@@ -62,6 +52,10 @@ jobs:
   build:
     name: Build for ${{ matrix.name }}
     needs: check
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      inputs.os == 'all' ||
+      inputs.os == matrix.name
     strategy:
       fail-fast: false
       matrix:
@@ -69,14 +63,18 @@ jobs:
           - name: Windows
             os: windows-latest
             make: npm run make
+            environment: windows-signing
           - name: macOS
-            # macOS 26 with Xcode 26: needed to compile the Liquid Glass
-            # app icon (brand/icon-composer/Firn.icon).
+            # macOS 26 with Xcode 26: needed to compile the Liquid Glass app icon
             os: macos-26
             make: npm run make -- --arch=universal
+            environment: ''
+          - name: Linux
+            os: ubuntu-latest
+            make: npm run make
+            environment: ''
     runs-on: ${{ matrix.os }}
-    # Azure trusts this environment's runs for Windows signing.
-    environment: windows-signing
+    environment: ${{ matrix.environment }}
     permissions:
       contents: read
       id-token: write
@@ -87,6 +85,25 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            dpkg \
+            fakeroot \
+            rpm \
+            flatpak \
+            flatpak-builder \
+            elfutils
+
+      - name: Set up Flatpak runtimes
+        if: runner.os == 'Linux'
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub org.freedesktop.Platform//23.08 org.freedesktop.Sdk//23.08
+
       - name: Check the release's tag matches package.json's version
         if: github.event_name == 'release'
         shell: bash
@@ -96,6 +113,7 @@ jobs:
             echo "::error::The release tag is $GITHUB_REF_NAME, but package.json says $version. Name the release's tag v$version."
             exit 1
           fi
+
       - name: Set up Mac signing
         if: runner.os == 'macOS'
         env:
@@ -111,8 +129,6 @@ jobs:
             echo "::warning::No Mac signing secrets: this Firn.app gets a basic signature and isn't notarized."
             exit 0
           fi
-          # A keychain just for this build, holding the certificate (and
-          # Apple's intermediate certificate, which completes its chain).
           keychain="$RUNNER_TEMP/firn-signing.keychain-db"
           keychain_password="$(openssl rand -base64 24)"
           security create-keychain -p "$keychain_password" "$keychain"
@@ -131,10 +147,10 @@ jobs:
             $(security list-keychains -d user | tr -d '"')
           security find-identity -v -p codesigning "$keychain" | grep -q 'Developer ID Application' ||
             { echo "::error::The certificate in MAC_CERTIFICATE_P12 isn't a Developer ID Application certificate."; exit 1; }
-          # The App Store Connect key, as a file for notarization.
           echo "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
           echo "FIRN_MAC_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
           echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+
       - name: Check for the Windows signing secrets
         id: windows-signing
         if: runner.os == 'Windows'
@@ -151,6 +167,7 @@ jobs:
             exit 0
           fi
           echo "sign=yes" >> "$GITHUB_OUTPUT"
+
       - name: Sign in to Azure
         if: steps.windows-signing.outputs.sign == 'yes'
         uses: azure/login@v3
@@ -158,11 +175,11 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Set up Windows signing
         if: steps.windows-signing.outputs.sign == 'yes'
         shell: pwsh
         run: |
-          # Microsoft's signing add-on for signtool (the "dlib").
           $dir = Join-Path $env:RUNNER_TEMP 'artifact-signing'
           New-Item -ItemType Directory -Force $dir | Out-Null
           $zip = Join-Path $dir 'client.zip'
@@ -171,13 +188,10 @@ jobs:
           $dlib = Get-ChildItem $dir -Recurse -Filter 'Azure.CodeSigning.Dlib.dll' |
             Where-Object { $_.Directory.Name -eq 'x64' } | Select-Object -First 1
           if (-not $dlib) { throw 'No Azure.CodeSigning.Dlib.dll (x64) in the signing package.' }
-          # The newest signtool from the Windows SDK.
           $signtool = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe' |
             Sort-Object { [version]$_.Directory.Parent.Name } -Descending | Select-Object -First 1
           if (-not $signtool) { throw 'No signtool.exe from the Windows SDK.' }
           "signtool: $($signtool.FullName)"
-          # Which account and certificate to sign with; signs in through the
-          # Azure sign-in above (the other ways are skipped).
           $metadata = Join-Path $dir 'metadata.json'
           @{
             Endpoint = 'https://wus2.codesigning.azure.net'
@@ -198,12 +212,14 @@ jobs:
           "FIRN_WINDOWS_SIGN_DLIB=$($dlib.FullName)" >> $env:GITHUB_ENV
           "FIRN_WINDOWS_SIGN_METADATA=$metadata" >> $env:GITHUB_ENV
           "FIRN_WINDOWS_SIGNTOOL=$($signtool.FullName)" >> $env:GITHUB_ENV
+
       - name: Build
         run: ${{ matrix.make }}
         env:
           FIRN_SAFE_BROWSING_KEY: ${{ secrets.FIRN_SAFE_BROWSING_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+
       - name: Check the Mac app is signed and notarized
         if: runner.os == 'macOS' && env.FIRN_MAC_KEYCHAIN != ''
         env:
@@ -215,8 +231,8 @@ jobs:
           [ "$team" = "$APPLE_TEAM_ID" ] ||
             { echo "::error::Firn.app is signed by team '$team', not APPLE_TEAM_ID."; exit 1; }
           xcrun stapler validate "$app"
-          # Gatekeeper's own verdict, as a Mac that downloaded Firn sees it.
           spctl --assess --type execute --verbose=4 "$app"
+
       - name: Check Firn and its installer are signed
         if: steps.windows-signing.outputs.sign == 'yes'
         shell: pwsh
@@ -229,6 +245,7 @@ jobs:
             $signature = Get-AuthenticodeSignature $file.FullName
             "$($file.Name): $($signature.Status), $($signature.SignerCertificate.Subject)"
           }
+
       - name: Check the Mac app has its Liquid Glass icon
         if: runner.os == 'macOS'
         run: |
@@ -237,6 +254,7 @@ jobs:
             { echo "::error::Firn.app has no Assets.car (the Liquid Glass icon)"; exit 1; }
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$app/Contents/Info.plist"
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$app/Contents/Info.plist"
+
       - uses: actions/upload-artifact@v7
         with:
           name: Firn for ${{ matrix.name }}
@@ -245,8 +263,14 @@ jobs:
             out/make/**/*.nupkg
             out/make/**/RELEASES
             out/make/**/*.zip
+            out/make/**/*.deb
+            out/make/**/*.rpm
+            out/make/**/*.AppImage
+            out/make/**/*.flatpak
+            out/make/**/*.tar.gz
           if-no-files-found: error
           retention-days: 30
+
       - name: Remove the signing keychain and key
         if: always() && runner.os == 'macOS'
         run: |
@@ -269,24 +293,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # The Mac app once more under a name that never changes, so
-          # .../releases/latest/download/Firn.for.Mac.zip is always the
-          # newest (like Firn.Setup.exe). No dash before "Mac": the update
-          # service only reads Mac zips named "-mac", "-darwin" or "-osx",
-          # so it ignores this copy.
           mac_zip="$(find dist -name 'Firn-darwin-universal-*.zip' -print -quit)"
-          [ -n "$mac_zip" ] || { echo "::error::No Mac zip to attach."; exit 1; }
-          cp "$mac_zip" dist/Firn.for.Mac.zip
-          # And for automatic updates: a Mac asks the update service for
-          # its own kind ("darwin-arm64" on Apple chips, "darwin-x64" on
-          # Intel), and the service picks the zip by the name's "-arm64" /
-          # "-x64" (a "-universal" one alone isn't handed to either: no Mac
-          # downloaded one through 0.5.0). Firn's app is one for both, so
-          # it goes up under each name.
-          version="$(basename "$mac_zip" .zip)"
-          version="${version#Firn-darwin-universal-}"
-          cp "$mac_zip" "dist/Firn-darwin-arm64-$version.zip"
-          cp "$mac_zip" "dist/Firn-darwin-x64-$version.zip"
+          if [ -n "$mac_zip" ]; then
+            cp "$mac_zip" dist/Firn.for.Mac.zip
+            version="$(basename "$mac_zip" .zip)"
+            version="${version#Firn-darwin-universal-}"
+            cp "$mac_zip" "dist/Firn-darwin-arm64-$version.zip"
+            cp "$mac_zip" "dist/Firn-darwin-x64-$version.zip"
+          fi
           find dist -type f -print
           find dist -type f -print0 |
             xargs -0 gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber
