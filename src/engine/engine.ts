@@ -12,10 +12,21 @@ export interface PageBounds {
   height: number;
 }
 
+// Where a link was followed from, for the site it leads to, as Chrome
+// sends it (`policy`: how much of `url` the page or link lets go along).
+// Some sites need it: Reddit's image links lead to the post, not the
+// picture, when it's missing.
+export interface Referrer {
+  url: string;
+  policy: string;
+}
+
 // What was right-clicked on a page, and what can be done with it there.
 export interface PageContextMenu {
   // A link that was clicked on (and its text), or ''.
   linkUrl: string;
+  // Where that link would be followed from.
+  referrer?: Referrer;
   // An image that was clicked on, or ''.
   imageUrl: string;
   // Selected text, or ''.
@@ -48,9 +59,9 @@ export interface PageEvents {
   // A link asked to open in a new tab (`background`: without switching to
   // it). Real popup windows, such as sign-in flows, are handled by the
   // engine and never come here.
-  onOpenTab(url: string, background: boolean): void;
+  onOpenTab(url: string, background: boolean, referrer?: Referrer): void;
   // A link was Shift+clicked: preview it in Lookout.
-  onLookout(url: string): void;
+  onLookout(url: string, referrer?: Referrer): void;
   // The page went into or out of fullscreen (e.g. a video).
   onFullscreen(on: boolean): void;
   // The mouse was pressed inside the page (the person is working in it).
@@ -88,7 +99,8 @@ export interface Page {
   // (false if the page doesn't answer quickly).
   hasTypedText(): Promise<boolean>;
 
-  load(url: string): void;
+  // (`referrer`: where a link that led here was followed from.)
+  load(url: string, referrer?: Referrer): void;
   // Brings back saved back/forward history (with scroll positions); fails
   // if the engine can't.
   restoreHistory(history: SavedHistory): Promise<void>;
@@ -141,6 +153,11 @@ export interface EngineDownload {
   // The file name the site suggests.
   readonly suggestedName: string;
   setSavePath(path: string): void;
+  // Or: the engine asks the person where (its Save dialog, starting at
+  // `defaultPath`). Cancelling it cancels the download.
+  askSavePath(defaultPath: string): void;
+  // Where it's being saved ('' until known, e.g. while the person chooses).
+  readonly savePath: string;
   // Reports progress (bytes so far, and the total, or 0 if unknown).
   onProgress(listener: (received: number, total: number) => void): void;
   onDone(listener: (state: 'completed' | 'cancelled' | 'failed') => void): void;

@@ -87,12 +87,17 @@ function DownloadRow({ download: d }: { download: Download }) {
         ) : canRetry ? (
           <RetryIcon />
         ) : (
-          <span className={finished ? 'is-settling' : ''} key={finished}>
+          // (Each key is its own: the icon and the pulse sharing one left
+          // the old icon behind, two stacked, when a download finished.)
+          <span
+            className={finished ? 'is-settling' : ''}
+            key={`file-${finished}`}
+          >
             <FileIcon />
           </span>
         )}
         {(arriving || finished > 0) && (
-          <span className="download-pulse" key={finished} />
+          <span className="download-pulse" key={`pulse-${finished}`} />
         )}
       </span>
       <span className="download-text">

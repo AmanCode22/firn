@@ -19,6 +19,7 @@ import type {
   PageContextMenu,
   PageEngine,
   PageEvents,
+  Referrer,
 } from './engine/engine';
 import { toNavigableUrl } from './url';
 import type {
@@ -122,7 +123,7 @@ interface TabManagerOptions {
   // The last tab was closed.
   onEmpty: () => void;
   // A link was Shift+clicked: preview it in Lookout.
-  onLookout: (url: string) => void;
+  onLookout: (url: string, referrer?: Referrer) => void;
   // A tab's page went somewhere (`newVisit`), or its title or icon became
   // known (for the browsing history).
   onVisit: (
@@ -364,9 +365,15 @@ export class TabManager {
   // waits to load until it's first shown.
   create(
     url: string,
-    opts: { activate?: boolean; after?: string; restore?: SavedTab } = {},
+    opts: {
+      activate?: boolean;
+      after?: string;
+      restore?: SavedTab;
+      // Where the link that opened it was followed from.
+      referrer?: Referrer;
+    } = {},
   ) {
-    const { activate = true, after, restore } = opts;
+    const { activate = true, after, restore, referrer } = opts;
     const id = restore?.id ?? randomUUID();
     const tab: Tab = {
       id,
@@ -402,7 +409,7 @@ export class TabManager {
     if (restore) this.keepGroupsInOrder();
     this.renumber();
 
-    if (!restore) this.load(entry);
+    if (!restore) this.load(entry, referrer);
 
     if (activate || (!this.activeId && !restore)) this.activate(id);
     else this.emitTabs();
@@ -805,7 +812,7 @@ export class TabManager {
 
   // Loads a tab's page: its saved history if it has one (landing back on the
   // same page and scroll position), otherwise its address.
-  private load(entry: Entry) {
+  private load(entry: Entry, referrer?: Referrer) {
     if (entry.loaded) return;
     entry.loaded = true;
     const { page } = entry;
@@ -814,7 +821,7 @@ export class TabManager {
     if (history?.entries.length) {
       page.restoreHistory(history).catch(() => page.load(entry.tab.url));
     } else {
-      page.load(entry.tab.url);
+      page.load(entry.tab.url, referrer);
     }
   }
 
@@ -1808,7 +1815,7 @@ export class TabManager {
       // Basecamp or pinned tab, a link to another site opens in Lookout
       // instead, so the pinned tab stays put and no stray tabs pile up
       // (middle- or Ctrl+click still opens a background tab).
-      onOpenTab: (url, background) => {
+      onOpenTab: (url, background, referrer) => {
         const tab = entryOf()?.tab;
         if (
           tab &&
@@ -1816,10 +1823,10 @@ export class TabManager {
           (tab.basecamp || tab.pinned) &&
           siteOf(url) !== siteOf(tab.url)
         )
-          return this.options.onLookout(url);
-        void this.create(url, { after: id, activate: !background });
+          return this.options.onLookout(url, referrer);
+        void this.create(url, { after: id, activate: !background, referrer });
       },
-      onLookout: (url) => this.options.onLookout(url),
+      onLookout: (url, referrer) => this.options.onLookout(url, referrer),
       onFocus: () => {
         if (entryOf()) this.focused(id);
       },

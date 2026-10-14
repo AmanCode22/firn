@@ -1,7 +1,11 @@
 // Firn's downloads: files save straight to the Downloads folder (like
 // Chrome), a name that's taken gets " (1)", and the most recent ones are
 // remembered in downloads.json next to the session, so the sidebar can show
-// them and open them again.
+// them and open them again. With "Ask where to save each file" on, the
+// system's Save dialog asks first (starting at that same spot).
+//
+// FIRN_SAVE_AS_TEST pretends to answer the dialog, for the end-to-end
+// checks: a folder to save into, or "cancel".
 
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
@@ -25,47 +29,68 @@ export class Downloads {
     private file: string,
     private folder: () => string,
     private onChange: (downloads: Download[]) => void,
+    private askWhere: () => boolean = () => false,
   ) {
     this.load();
     this.saver = new SaveScheduler(() => this.save(), 1000);
   }
 
-  // A download is starting: choose where it goes and follow it.
+  // A download is starting: choose where it goes (or ask) and follow it.
   add(item: EngineDownload) {
-    const savePath = this.freePath(item.suggestedName || 'download');
-    item.setSavePath(savePath);
-    const download: Download = {
-      id: randomUUID(),
-      url: item.url,
-      name: path.basename(savePath),
-      path: savePath,
-      state: 'progress',
-      received: 0,
-      total: 0,
-      startedAt: Date.now(),
+    const suggested = this.freePath(item.suggestedName || 'download');
+    if (!this.askWhere()) item.setSavePath(suggested);
+    else {
+      const pretend = process.env.FIRN_SAVE_AS_TEST;
+      if (pretend === 'cancel') item.cancel();
+      else if (pretend)
+        item.setSavePath(path.join(pretend, path.basename(suggested)));
+      else item.askSavePath(suggested);
+    }
+    // It joins the list once it's known where it goes: right away, or once
+    // the person has chosen (a dialog cancelled leaves nothing behind).
+    let download: Download | null = null;
+    const listed = () => {
+      if (download) return download;
+      const savePath = item.savePath || suggested;
+      download = {
+        id: randomUUID(),
+        url: item.url,
+        name: path.basename(savePath),
+        path: savePath,
+        state: 'progress',
+        received: 0,
+        total: 0,
+        startedAt: Date.now(),
+      };
+      this.list.unshift(download);
+      this.list.length = Math.min(this.list.length, MAX_REMEMBERED);
+      this.items.set(download.id, item);
+      this.changed(true);
+      return download;
     };
-    this.list.unshift(download);
-    this.list.length = Math.min(this.list.length, MAX_REMEMBERED);
-    this.items.set(download.id, item);
+    if (item.savePath) listed();
     item.onProgress((received, total) => {
-      download.received = received;
-      download.total = total;
+      if (!item.savePath) return;
+      const going = listed();
+      going.received = received;
+      going.total = total;
       this.changedSoon();
     });
     item.onDone((state) => {
-      this.items.delete(download.id);
-      download.state =
+      // Asked, and the person cancelled: it never started.
+      if (!download && !item.savePath) return;
+      const ended = listed();
+      this.items.delete(ended.id);
+      ended.state =
         state === 'completed'
           ? 'done'
           : state === 'cancelled'
             ? 'cancelled'
             : 'failed';
-      if (state === 'completed')
-        download.received = download.total || download.received;
-      download.endedAt = Date.now();
+      if (state === 'completed') ended.received = ended.total || ended.received;
+      ended.endedAt = Date.now();
       this.changed(true);
     });
-    this.changed(true);
   }
 
   // Whether each finished file was still there when last looked at.

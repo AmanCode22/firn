@@ -25,7 +25,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadSession, SaveScheduler, saveSession, sessionPath } from './store';
-import type { Page, PageContextMenu } from './engine/engine';
+import type { Page, PageContextMenu, Referrer } from './engine/engine';
 import { ElectronEngine } from './engine/electron';
 import { Downloads } from './downloads';
 import { PasswordStore } from './passwords';
@@ -46,9 +46,11 @@ import type { PermissionKind, PermissionRequest } from './engine/engine';
 import { parseKey, PERMISSION_WORDING, SitePermissions } from './permissions';
 import { History } from './history';
 import {
+  isSearch,
   SEARCH_ENGINES,
   searchUrl,
   setSearchEngine,
+  toNavigableUrl,
   type SearchEngine,
 } from './url';
 import { isLiquidGlass, pageRadius } from './frame';
@@ -168,9 +170,13 @@ const SLEEP_CHECK_MS = SLEEP_TEST ? 1000 : 5 * 60 * 1000;
 const PEEK_RIGHT_SLACK = 8;
 const PEEK_LINGER_MS = 120;
 // ...and to the left, past the window's edge, it stays out for this far
-// (and a little longer once the mouse goes beyond it).
+// (and a little longer once the mouse goes beyond it), where that edge is
+// the screen's own (a maximized or snapped window: the mouse overshooting
+// onto another screen). Elsewhere, off the window (the desktop, another
+// app, the taskbar below), it only forgives a small slip.
 const PEEK_LEFT_SLACK = 200;
 const PEEK_LEFT_LINGER_MS = 400;
+const PEEK_OFF_WINDOW_SLACK = 24;
 // A UI panel that hasn't reported it started within this long is reloaded.
 const UI_START_TIMEOUT_MS = 5000;
 
@@ -317,18 +323,17 @@ async function fetchCapped(
   {
     keepStart = false,
     credentials,
+    timeout = FETCH_TIMEOUT_MS,
   }: {
     keepStart?: boolean;
     credentials?: RequestCredentials;
+    timeout?: number;
   } = {},
 ) {
   const stop = new AbortController();
   const response = await session.defaultSession.fetch(url, {
     credentials,
-    signal: AbortSignal.any([
-      stop.signal,
-      AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    ]),
+    signal: AbortSignal.any([stop.signal, AbortSignal.timeout(timeout)]),
   });
   if (!response.ok) {
     stop.abort();
@@ -359,6 +364,9 @@ async function fetchCapped(
 
 // How long a favicon or a page read for the welcome may take.
 const FETCH_TIMEOUT_MS = 8000;
+// Search suggestions come quickly or not at all (they're only useful while
+// typing).
+const SUGGEST_TIMEOUT_MS = 2000;
 
 // Downloads a favicon and returns it as a data: URL (or null). Small images
 // only, quickly; anything else is ignored.
@@ -1272,6 +1280,7 @@ const createWindow = () => {
   const openWelcome = () => {
     welcomePending = false;
     showOverlay({ mode: 'welcome', openId: ++commandOpenId });
+    refreshDefaultBrowser();
   };
   const finishWelcome = (urls: unknown) => {
     if (overlay.mode !== 'welcome') return;
@@ -1457,6 +1466,7 @@ const createWindow = () => {
 
   const openSettings = () => {
     showOverlay({ mode: 'settings', openId: ++commandOpenId });
+    refreshDefaultBrowser();
   };
 
   const openFind = () => {
@@ -1682,7 +1692,15 @@ const createWindow = () => {
       send('settings:state', settingsState());
     });
   refreshDefaultBrowser();
-  win.on('focus', refreshDefaultBrowser);
+  // Only Settings and the welcome show it, so it's looked at again (a
+  // registry query on Windows) when one opens, or when Firn comes back to
+  // the front while one is open (perhaps from Windows' Default apps), not
+  // on every focus.
+  const showsDefaultBrowser = () =>
+    overlay.mode === 'settings' || overlay.mode === 'welcome';
+  win.on('focus', () => {
+    if (showsDefaultBrowser()) refreshDefaultBrowser();
+  });
   const settingsState = () => ({
     settings,
     downloadsFolder: downloadsFolder(),
@@ -1706,6 +1724,7 @@ const createWindow = () => {
     path.join(app.getPath('userData'), 'downloads.json'),
     downloadsFolder,
     (list) => send('downloads:state', list),
+    () => settings.askWhereToSave,
   );
   engine.onDownload((item) => downloads.add(item));
   engine.setSavedLoginProvider((origin) => passwords.loginFor(origin));
@@ -1776,7 +1795,7 @@ const createWindow = () => {
       sendNav();
     },
     onEmpty: () => openCommandBar(),
-    onLookout: (url) => openLookout(url),
+    onLookout: (url, referrer) => openLookout(url, referrer),
     onVisit: (url, title, favicon, newVisit) =>
       history.visit(url, title, favicon, newVisit),
     onFindResult: (result) => {
@@ -1845,10 +1864,10 @@ const createWindow = () => {
     });
   };
 
-  const openLookout = (url: string) => {
+  const openLookout = (url: string, referrer?: Referrer) => {
     // Already open: show the new link in the same panel.
     if (lookout) {
-      lookout.page.load(url);
+      lookout.page.load(url, referrer);
       return;
     }
     if (overlay.mode !== 'hidden') hideOverlay();
@@ -1859,8 +1878,9 @@ const createWindow = () => {
       },
       onNavigationStart: () => {},
       // Links in the preview that ask for a new tab open one quietly.
-      onOpenTab: (link) => void tabs.create(link, { activate: false }),
-      onLookout: (link) => page.load(link),
+      onOpenTab: (link, _background, referrer) =>
+        void tabs.create(link, { activate: false, referrer }),
+      onLookout: (link, referrer) => page.load(link, referrer),
       onFullscreen: () => {},
       onFocus: () => {},
       onFindResult: () => {},
@@ -1870,7 +1890,7 @@ const createWindow = () => {
       onLogin: () => {},
     });
     lookout = { page, favicon: '', openId: ++commandOpenId, shown: false };
-    page.load(url);
+    page.load(url, referrer);
     page.place(lookoutPanel(), LOOKOUT_RADIUS);
     sendLookout('open');
     // Show the page once the stand-in panel has scaled in.
@@ -2074,11 +2094,14 @@ const createWindow = () => {
   // position, like the top bar, since its top row moves the window).
   const mouseIsOverPeek = () => {
     const { x, y, height } = cursorInWindow();
+    const content = win.getContentBounds();
+    const atScreenEdge =
+      content.x <= screen.getDisplayMatching(content).bounds.x;
     return (
-      x >= -PEEK_LEFT_SLACK &&
+      x >= -(atScreenEdge ? PEEK_LEFT_SLACK : PEEK_OFF_WINDOW_SLACK) &&
       x <= windowState.sidebarWidth + PEEK_RIGHT_SLACK &&
-      y >= -200 &&
-      y <= height + 200
+      y >= -PEEK_OFF_WINDOW_SLACK &&
+      y <= height + PEEK_OFF_WINDOW_SLACK
     );
   };
 
@@ -2319,6 +2342,7 @@ const createWindow = () => {
       tabs.create(url, {
         after: tabId ?? undefined,
         activate: activate && !!tabId,
+        referrer: menu.referrer,
       });
 
     if (menu.isEditable && menu.misspelledWord)
@@ -2337,7 +2361,9 @@ const createWindow = () => {
         {
           label: 'Open link in Lookout',
           click: () =>
-            tabId ? openLookout(menu.linkUrl) : page.load(menu.linkUrl),
+            tabId
+              ? openLookout(menu.linkUrl, menu.referrer)
+              : page.load(menu.linkUrl, menu.referrer),
         },
         {
           label: 'Copy link',
@@ -3403,6 +3429,49 @@ const createWindow = () => {
   ipcMain.handle('command:tabs', (event: IpcMainInvokeEvent) =>
     uiContents.includes(event.sender) ? tabs.allTabs() : [],
   );
+  // The search engine's suggestions as you type, only with "Search
+  // suggestions" on (asked first: the welcome, or the command bar once).
+  // Never for something that looks like an address, sent without cookies
+  // (so not tied to a signed-in account), small and quick or not at all.
+  // FIRN_SUGGEST_TEST points it at a test server, for the suggest check.
+  const suggestSearches = async (query: string): Promise<string[]> => {
+    const q = query.trim().slice(0, 200);
+    if (settings.searchSuggestions !== 'on' || !q) return [];
+    const url = toNavigableUrl(q);
+    if (!url || !isSearch(url)) return [];
+    const base =
+      process.env.FIRN_SUGGEST_TEST ??
+      SEARCH_ENGINES[settings.searchEngine]?.suggest;
+    if (!base) return [];
+    try {
+      const got = await fetchCapped(base + encodeURIComponent(q), 64 * 1024, {
+        credentials: 'omit',
+        timeout: SUGGEST_TIMEOUT_MS,
+      });
+      const data: unknown = got && JSON.parse(got.body.toString('utf8'));
+      const list = Array.isArray(data) && Array.isArray(data[1]) ? data[1] : [];
+      return [
+        ...new Set(
+          list
+            .filter((s): s is string => typeof s === 'string')
+            .map((s) => s.trim())
+            .filter(
+              (s) =>
+                s && s.length <= 200 && s.toLowerCase() !== q.toLowerCase(),
+            ),
+        ),
+      ].slice(0, 4);
+    } catch {
+      return [];
+    }
+  };
+  ipcMain.handle(
+    'search:suggest',
+    (event: IpcMainInvokeEvent, query: unknown) =>
+      uiContents.includes(event.sender) && typeof query === 'string'
+        ? suggestSearches(query)
+        : [],
+  );
   ipcMain.handle(
     'history:search',
     (event: IpcMainInvokeEvent, query: unknown) =>
@@ -3730,6 +3799,7 @@ const createWindow = () => {
     ipcMain.removeHandler('welcome:icon');
     ipcMain.removeHandler('command:tabs');
     ipcMain.removeHandler('history:search');
+    ipcMain.removeHandler('search:suggest');
     ipcMain.removeHandler('history:list');
     ipcMain.removeHandler('archive:list');
     ipcMain.removeHandler('passwords:list');
@@ -3862,9 +3932,12 @@ if (process.platform === 'win32')
 // "Electron/…", and some sites (Microsoft's among them) then act as if
 // they're inside an app, turning things off. A plain Chrome name is also
 // one more way Firn doesn't stand out.
+// Real Chrome also says only its main version ("Chrome/152.0.0.0", not
+// "Chrome/152.0.7977.130"), so Firn does the same.
 app.userAgentFallback = app.userAgentFallback
   .replace(/ Firn\/\S+/i, '')
-  .replace(/ Electron\/\S+/, '');
+  .replace(/ Electron\/\S+/, '')
+  .replace(/Chrome\/(\d+)[\d.]*/, 'Chrome/$1.0.0.0');
 
 // Only one Firn runs at a time. Opening it again brings the existing window
 // forward instead, so two copies can never overwrite each other's session.

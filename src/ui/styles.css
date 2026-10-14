@@ -2673,6 +2673,34 @@ button {
   gap: 2px;
 }
 
+/* The command bar's one-time question about search suggestions: a quiet
+   line under the results, in plain words, with two small buttons. */
+.command-ask {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 12px 20px;
+  border-top: 1px solid var(--panel-edge);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.command-ask > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.command-ask .sheet-button {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.command-ask .sheet-button.is-quiet {
+  background: transparent;
+  color: var(--text-muted);
+}
+
 .command-bar .results {
   border-top: 1px solid var(--panel-edge);
 }
@@ -3829,6 +3857,24 @@ button {
 
 .welcome-engine strong {
   margin-top: 0;
+}
+
+/* Under the engines: suggestions as you type, yes or no. */
+.welcome-suggest {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  font-size: 13px;
+  text-align: left;
+}
+
+.welcome-suggest small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 /* How the sidebar works: a small drawing, its three parts lined up with

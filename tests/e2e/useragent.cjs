@@ -1,6 +1,7 @@
 // Websites see Firn as plain Chrome: no "Firn/…" or "Electron/…" in the
 // browser's name (some sites, Microsoft's among them, act differently when
-// they see Electron's), in what pages read and what they're sent.
+// they see Electron's), in what pages read and what they're sent, and only
+// the main Chrome version ("Chrome/152.0.0.0"), as real Chrome sends.
 const { _electron } = require('./playwright.cjs');
 const path = require('path');
 const http = require('http');
@@ -37,6 +38,11 @@ const server = http
     /Chrome\/\d/.test(ua) && !/Electron|Firn/i.test(ua) && ua.length > 0;
   check('pages read a plain Chrome name', plain(read), read);
   check('...and are sent the same', plain(sent) && sent === read, sent);
+  check(
+    'only the main Chrome version, as real Chrome sends',
+    /Chrome\/\d+\.0\.0\.0 /.test(read),
+    read.match(/Chrome\/\S+/)?.[0] ?? read,
+  );
   console.log(
     `\n${results.filter(Boolean).length}/${results.length} checks passed`,
   );

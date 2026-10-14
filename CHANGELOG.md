@@ -1,5 +1,25 @@
 # What's new in Firn
 
+## Firn 0.10.0
+
+**A command bar that finishes your sentences.**
+
+Type the start of a site in the command bar and Firn fills in the rest. It can also show your search engine's suggestions, but only if you say yes first. And a Reddit picture now opens on its own in a new tab.
+
+### New
+
+- **The command bar completes addresses.** Type "git" and it fills in "github.com" from your history and open tabs, the added part selected. Keep typing to replace it, or press Enter to go there. It all stays on your computer.
+- **Search suggestions, if you want them.** Firn asks once, in the welcome or the first time you type in the command bar, before it sends anything you type to your search engine. You can change it any time in Settings > Search.
+- **Ask where to save each file.** Settings > Downloads has a new switch. Turn it on and Firn asks where each file should go.
+
+### Fixed
+
+- **Pictures on Reddit** (and sites that work the same way) opened the post again when you clicked one to open it in a new tab. They now open as the full picture, like in Zen.
+- **The sliding sidebar** stayed out when your mouse went down to the taskbar or off the window's left edge. It now tucks away.
+- **A finished download** sometimes showed two file icons stacked.
+- **Windows** is asked whether Firn is your default browser only when Settings or the welcome is showing, not every time the window comes to the front.
+- **Websites** now see Chrome's main version number only, as they do in Chrome.
+
 ## Firn 0.9.2
 
 **Calmer scrollbars, and a steadier Firn.**
