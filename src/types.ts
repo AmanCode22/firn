@@ -110,6 +110,9 @@ export interface Settings {
   searchEngine: 'duckduckgo' | 'google' | 'bing' | 'ecosia' | 'startpage';
   theme: 'system' | 'light' | 'dark';
   downloadsFolder: string;
+  // Ask where to save each download (the system's Save dialog), instead of
+  // saving straight to the folder above.
+  askWhereToSave: boolean;
   // Where the address bar sits: in the sidebar (the default) or in a top
   // bar that's always there. See "Opinionated: two looks" in CLAUDE.md.
   addressBar: 'sidebar' | 'top';

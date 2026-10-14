@@ -384,6 +384,11 @@ function wrapDownload(item: Electron.DownloadItem): EngineDownload {
     url: item.getURL(),
     suggestedName: item.getFilename(),
     setSavePath: (path) => item.setSavePath(path),
+    // (No save path set: Electron shows the system's Save dialog.)
+    askSavePath: (defaultPath) => item.setSaveDialogOptions({ defaultPath }),
+    get savePath() {
+      return item.getSavePath();
+    },
     onProgress: (listener) =>
       item.on('updated', () =>
         listener(item.getReceivedBytes(), item.getTotalBytes()),

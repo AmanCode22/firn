@@ -1471,6 +1471,38 @@ function SettingsPanel({ state }: { state: SettingsState | null }) {
                   Change…
                 </button>
               </div>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span>Ask where to save each file</span>
+                  <small>
+                    Otherwise files go straight to the folder above.
+                  </small>
+                </div>
+                <div
+                  className="segmented"
+                  role="radiogroup"
+                  data-testid="ask-where-to-save"
+                >
+                  {(
+                    [
+                      [true, 'On'],
+                      [false, 'Off'],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={label}
+                      role="radio"
+                      aria-checked={state.settings.askWhereToSave === value}
+                      className={
+                        state.settings.askWhereToSave === value ? 'is-on' : ''
+                      }
+                      onClick={() => change({ askWhereToSave: value })}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </section>
 
             <section className="settings-group">

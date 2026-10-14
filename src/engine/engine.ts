@@ -141,6 +141,11 @@ export interface EngineDownload {
   // The file name the site suggests.
   readonly suggestedName: string;
   setSavePath(path: string): void;
+  // Or: the engine asks the person where (its Save dialog, starting at
+  // `defaultPath`). Cancelling it cancels the download.
+  askSavePath(defaultPath: string): void;
+  // Where it's being saved ('' until known, e.g. while the person chooses).
+  readonly savePath: string;
   // Reports progress (bytes so far, and the total, or 0 if unknown).
   onProgress(listener: (received: number, total: number) => void): void;
   onDone(listener: (state: 'completed' | 'cancelled' | 'failed') => void): void;

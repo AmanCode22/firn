@@ -1716,6 +1716,7 @@ const createWindow = () => {
     path.join(app.getPath('userData'), 'downloads.json'),
     downloadsFolder,
     (list) => send('downloads:state', list),
+    () => settings.askWhereToSave,
   );
   engine.onDownload((item) => downloads.add(item));
   engine.setSavedLoginProvider((origin) => passwords.loginFor(origin));
