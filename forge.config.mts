@@ -181,20 +181,16 @@ const config: ForgeConfig = {
         sdk: 'org.freedesktop.Sdk',
         branch: 'stable',
         files: [],
+        icon: './brand/app-icons/firn-app-icon-macos-glacier-1024.png',
         finishArgs: [
-          // Wayland and X11 access
           '--socket=wayland',
           '--socket=x11',
           '--share=ipc',
-          // Internet access
           '--share=network',
-          // Audio & GPU acceleration
           '--socket=pulseaudio',
           '--device=dri',
-          // File system access for downloads
           '--filesystem=xdg-download',
           '--filesystem=xdg-documents:ro',
-          // Notification support
           '--talk-name=org.freedesktop.Notifications',
         ],
       },
